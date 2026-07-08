@@ -18,6 +18,7 @@ from .rf_module import RFModule
 from .beamforming import BeamForming
 from .power_manager import PowerManager
 from .data_logger import DataLogger
+from .audio_streamer import AudioStreamer, AudioCodec, AudioMode
 
 __version__ = '1.0.0-alpha'
 __all__ = [
@@ -26,4 +27,7 @@ __all__ = [
     'BeamForming',
     'PowerManager',
     'DataLogger',
+    'AudioStreamer',
+    'AudioCodec',
+    'AudioMode',
 ]
