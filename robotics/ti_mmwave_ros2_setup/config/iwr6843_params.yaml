@@ -1,0 +1,116 @@
+# TI IWR6843ISK-ODS Radar Parameters
+# Physical and RF Configuration
+
+ti_mmwave_driver:
+  ros__parameters:
+    # UART Configuration
+    uart_port: "/dev/ttyUSB0"
+    baud_rate: 115200
+    rx_buffer_size: 8192
+
+    # Frame and Transform
+    frame_id: "radar"
+    base_frame_id: "base_link"
+
+    # Radar Physical Properties
+    radar_name: "iwr6843_isk_ods"
+
+    # RF Parameters
+    rf:
+      frequency_hz: 60e9              # 60 GHz ISM band
+      bandwidth_hz: 4e9               # 4 GHz chirp bandwidth
+      tx_power_dbm: 12.0              # 12 dBm transmit power
+      num_tx_antennas: 1              # Single TX element
+      num_rx_antennas: 4              # 4 RX elements (UPA)
+      antenna_spacing_mm: 5.4         # λ/2 at 60 GHz
+
+    # Chirp Configuration (for range measurement)
+    chirp:
+      chirp_duration_us: 40.0         # 40µs chirp window
+      idle_time_us: 10.0              # 10µs idle between chirps
+      chirp_loops_per_frame: 64       # 64 chirps per frame
+      frame_period_ms: 100            # 100ms frame (10 Hz)
+
+    # Range Detection
+    range:
+      max_range_m: 50.0               # Maximum unambiguous range
+      min_range_m: 0.5                # Minimum range (close-in)
+      range_resolution_m: 0.05        # 5cm range resolution
+      doppler_enabled: true
+      num_range_bins: 512             # FFT size for range
+
+    # Angle Estimation
+    angle:
+      azimuth_fov_deg: 120.0          # 120° azimuth field of view
+      elevation_fov_deg: 60.0         # 60° elevation field of view
+      azimuth_resolution_deg: 5.0     # ~5° angular resolution
+      beamforming_type: "CBF"         # Conventional Beamforming
+
+    # Velocity Detection
+    velocity:
+      doppler_enabled: true
+      max_velocity_ms: 20.0           # ±20 m/s max velocity
+      velocity_resolution_ms: 0.3     # 0.3 m/s velocity resolution
+
+    # Detection and Clustering
+    detection:
+      cfar_enabled: true              # Constant False Alarm Rate
+      cfar_threshold_dbfs: -25.0      # CFAR threshold
+      peak_grouping_enabled: true
+      clustering_enabled: true
+      clustering_algorithm: "density"  # dbscan or hierarchical
+      cluster_threshold_m: 0.5        # Inter-point distance for clustering
+
+    # False Alarm Mitigation
+    false_alarm:
+      static_clutter_removal: true    # Remove non-moving objects
+      clutter_threshold_dbfs: -30.0
+      min_doppler_for_detection_ms: 0.5  # Ignore objects < 0.5 m/s
+
+    # Output Configuration
+    output:
+      publish_raw_pointcloud: true
+      publish_detection_tracks: true
+      publish_range_doppler_heatmap: false  # Optional raw data
+      publish_rate_hz: 10.0
+      point_cloud_format: "XYZI"      # Include intensity
+      output_topic: "/radar/pointcloud"
+
+    # Point Cloud Properties
+    pointcloud:
+      # Coordinate frames
+      range_axis: "forward"           # X-axis: forward direction
+      azimuth_axis: "left"            # Y-axis: left (CCW from front)
+      elevation_axis: "up"            # Z-axis: upward
+
+      # Filtering
+      min_signal_strength: 10.0       # Minimum SNR (dB)
+      remove_ground_points: false     # Handled by separate node
+
+      # Intensity scaling
+      intensity_scaling: "normalized"  # 0-1 normalized or raw
+      intensity_min: -60.0            # dBFS scale min
+      intensity_max: 0.0              # dBFS scale max
+
+    # Logging and Debug
+    logging:
+      log_level: "info"               # debug, info, warn, error
+      log_raw_measurements: false     # High-bandwidth logging
+      statistics_publish_rate_hz: 1.0
+
+    # Calibration
+    calibration:
+      enable_antenna_calibration: true
+      # Phase offset corrections per RX antenna (radians)
+      rx_antenna_phase_offset_rad: [0.0, 0.0, 0.0, 0.0]
+      # Gain calibration per RX chain
+      rx_antenna_gain_db: [0.0, 0.0, 0.0, 0.0]
+      # Time synchronization offset (us)
+      time_sync_offset_us: 0.0
+
+    # Error Handling
+    error_handling:
+      restart_on_uart_error: true
+      restart_on_checksum_error: true
+      max_consecutive_errors: 10
+      error_recovery_timeout_s: 5.0
