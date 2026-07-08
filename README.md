@@ -1,326 +1,142 @@
-# Скептичный критик
+# VKTEST: Autonomous Underwater Reconnaissance Complex
 
-## Реализация: портативный аппарат электромуфтовой сварки
+**Status:** Architecture Design Complete, Ready for Field Testing  
+**Last Updated:** 2026-07-08  
 
-Помимо методологии (описанной ниже), проект содержит **рабочую реализацию**
-контроллера портативного (носимого, гибридное питание 48V LiFePO4 + сеть
-220В) аппарата электромуфтовой сварки — сквозной пример применения
-методологии "Скептичного критика" к реальной инженерной задаче.
+## Overview
 
-- `simulation/` — физическая модель (закон Джоуля-Ленца, ПИД-регулятор, батарея/сеть)
-- `control/` — конечный автомат, оркестратор цикла сварки, защиты
-- `critical_analysis/` — модули критика как исполняемый код (не только текст)
-- `protocol/` — формат штрих-кода муфты, криптографическая прослеживаемость (SHA-256)
-- `firmware/` — C-порт для ESP32-S3 (esp-idf), см. `firmware/README.md` за статусом сборки
-- `hardware/` — выбор платы (топ-5 из 10+ исследованных, 12 параметров) и BOM (~$1324)
-- `tests/` — **70 тестов**, покрывающих физику, ПИД, конечный автомат, безопасность, штрих-код
-- `docs/architecture.md` — обзор архитектуры и потока данных
-- `docs/99_facts_portable.md` — трассируемость 99 инженерных фактов → код
-- `docs/battery_energy_budget.md` — расчет батареи на 20-30 сварок
+VKTEST is an autonomous underwater vehicle (AUV) control system for deep-sea reconnaissance with:
 
-Запуск тестов: `python3 -m pytest tests/ -v`
+- **Autonomous Navigation:** FSM-driven edge intelligence (48 parameters)
+- **Depth Stabilization:** PID controller (±5 cm accuracy)
+- **Real-time Visualization:** PointPillars 3D neural network on Pixel 10
+- **Dual-Stack Connectivity:** Firebase (control) + WebRTC (data plane)
+- **Offline Resilience:** SQLite buffer + MQTT fallback + autonomous homing
+- **Hardware Safety:** ESP32 watchdog + thermal throttling + battery monitoring
 
----
-
-## Описание проекта
-
-**"Скептичный критик"** — это проект по разработке методологии обнаружения критических ошибок и когнитивных искажений в технических решениях. Проект демонстрирует, как универсальные "шаблоны" и "таблицы из интернета" приводят к браку и отказам в реальных системах, когда они игнорируют фундаментальные физические законы и особенности конкретного оборудования.
-
----
-
-## Техническое задание (TZ)
-
-### Цель
-Разработать систему критического анализа инженерных решений, которая выявляет:
-- ❌ Попытки навязать универсальные шаблоны там, где действуют строгие физические законы
-- ❌ Когнитивные искажения и ошибки обобщения
-- ❌ Игнорирование специфики оборудования и материалов
-- ✅ Правильные подходы, базирующиеся на регламентирующих стандартах и данных производителя
-
-### Основные компоненты
-
-#### 1. **Модуль обнаружения ошибок** (`error-detector`)
-Идентифицирует типовые когнитивные ошибки:
-- Универсализм (попытка применить одну таблицу ко всем случаям)
-- Игнорирование вариативности (разные муфты = разные сопротивления R)
-- Игнорирование первичных источников (нормативы вместо штрих-кода муфты)
-
-#### 2. **Модуль физического обоснования** (`physics-validator`)
-Проверяет соответствие предложенного решения фундаментальным законам:
-- Закон Джоуля-Ленца: **Q = (U²/R) · t**
-- Консерватизм температурных режимов (недогрев vs. перегрев)
-- Термодинамические свойства материалов
-
-#### 3. **Модуль регуляторного соответствия** (`standards-checker`)
-Валидирует решение по применимым стандартам:
-- ГОСТ Р 52779-2007 — маркировка и допуски
-- ГОСТ 32415-2013 — качество соединений
-- СП 42-103-2003 — технологический регламент
-
-#### 4. **Модуль синтеза правильного подхода** (`solution-synthesizer`)
-Генерирует корректное решение на основе:
-- Данных производителя (штрих-код/наклейка муфты)
-- Нормативных требований
-- Условий окружающей среды и подготовки поверхности
-
----
-
-## Практический пример: Электромуфтовая сварка
-
-### Проблема: Универсальная таблица параметров
-**Ошибочный подход:**
-Многие руководства предлагают "универсальную таблицу" вроде:
-```
-Диаметр | Напряжение | Ток | Время
---------|------------|-----|-------
-20 мм   | 39.5 В     | 25 А| 115 с
-32 мм   | 39.5 В     | 32 А| 165 с
-```
-
-**Почему это браковое решение:**
-Каждая электромуфта (Frialen, Georg Fischer, EuroStandard, Fox) имеет **уникальное электрическое сопротивление R** встроенной нагревательной спирали. Согласно **закону Джоуля-Ленца**:
+## Architecture
 
 ```
-Q = (U² / R) · t
+Pixel 10 Pro XL (Operator)
+   │
+   ├─ Firebase Control Plane (Events, Commands)
+   │
+   └─ WebRTC Data Plane (Sonar Streaming, 1+ Gbps mmWave)
+   
+Raspberry Pi 3 (Robot)
+   ├─ AutonomousAgent FSM (48-parameter SystemState)
+   ├─ PID Depth Controller (±5 cm)
+   ├─ SQLite Buffer (offline persistence)
+   ├─ Sensor Integration (BMP390, MPU6050, sonar)
+   ├─ Motor Control (vertical + horizontal thrusters)
+   └─ ESP32 Watchdog (heartbeat monitor)
+
+MQTT Broker (Fallback)
+   └─ Resilient QoS 2 delivery
 ```
 
-Если сварщик применит "усредненное время t" из таблицы к муфте с другим сопротивлением R:
-- **Недостаточный нагрев** → скрытый непровар, герметичность нарушена
-- **Перегрев** → термическая деструкция полиэтилена, расслоение
+## Quick Start
 
-### Правильный подход
+### Prerequisites
+- Python 3.11+
+- Docker & Docker Compose
+- 512 MB free disk space
 
-#### Шаг 1: Регламентирующие стандарты
-- **ГОСТ Р 52779-2007, ГОСТ 32415-2013** — качество и маркировка фитингов
-- **СП 42-103-2003** — технологический регламент (90% успеха зависит от подготовки!)
-
-#### Шаг 2: Механическая подготовка (КРИТИЧНА)
-1. **Очистка скребком** — снятие оксидного слоя на 0.1–0.2 мм
-2. **Позиционирование** — жесткая фиксация для снятия внутреннего напряжения
-3. **Обезжиривание** — изопропиловый спирт (без ворса)
-
-#### Шаг 3: Параметры сварки (из паспорта муфты)
-```
-Напряжение (U):      39.5 В (или как указано на наклейке)
-Сила тока (I):       Вычисляется аппаратом автоматически
-Время нагрева:       Читается из штрих-кода или указано вручную
-Время остывания:     Естественное в позиционере (не трогать!)
-```
-
-**Аппарат работает так:**
-1. Сканирует 24-значный штрих-код
-2. Автоматически рассчитывает I на основе фактического R спирали
-3. Регулирует параметры с учётом температуры окружающей среды
-4. Гарантирует точный термодинамический баланс
-
-#### Шаг 4: Если сканер сломан
-Берите параметры **исключительно с наклейки самой муфты**, которую держите в руках:
-- Напряжение: 39.5 V
-- Время нагрева: 115 s
-- Время остывания: 20 min
-
----
-
-## Ключевые принципы "Скептичного критика"
-
-| Принцип | Объяснение |
-|---------|-----------|
-| **Не доверяй шаблонам** | Универсальные таблицы — первый признак когнитивного искажения |
-| **Проверяй физику** | Если решение противоречит закону Джоуля-Ленца, оно неправильно |
-| **Источник — первичен** | Данные производителя > интернет-гайды > личные предположения |
-| **Специфика материала** | Каждая муфта, каждый сплав, каждое уплотнение имеют уникальные свойства |
-| **Стандарты как страховка** | ГОСТ и СП существуют не просто так — они результат опыта и аварий |
-| **Подготовка > Параметры** | 90% качества зависит от механической подготовки, а не от "магического времени" |
-
----
-
-## Архитектура решения
-
-```
-┌─────────────────────────────────────────┐
-│   Входные данные (текст, предложение)   │
-└──────────────┬──────────────────────────┘
-               │
-        ┌──────▼──────┐
-        │ Парсинг TZ  │
-        └──────┬──────┘
-               │
-   ┌───────────┼───────────┐
-   │           │           │
-   ▼           ▼           ▼
-┌──────┐  ┌──────┐   ┌──────┐
-│Error │  │Physics   │Standards│
-│Detec │  │Validator │Checker  │
-└──┬───┘  └───┬──┘   └───┬──┘
-   │          │          │
-   └──────────┼──────────┘
-              │
-        ┌─────▼─────┐
-        │ Синтез    │
-        │ Решения   │
-        └─────┬─────┘
-              │
-        ┌─────▼──────────┐
-        │ Выходные       │
-        │ Рекомендации   │
-        │ + Стандарты    │
-        └────────────────┘
-```
-
----
-
-## Примеры анализируемых ошибок
-
-### Ошибка #1: Универсальная таблица
-```
-❌ НЕПРАВИЛЬНО: "Для любой муфты 32 мм используй 165 секунд"
-✅ ПРАВИЛЬНО: "Считай штрих-код или используй время с наклейки конкретной муфты"
-```
-
-### Ошибка #2: Игнорирование подготовки
-```
-❌ НЕПРАВИЛЬНО: "Главное — выставить правильное время, всё остальное не важно"
-✅ ПРАВИЛЬНО: "Подготовка (очистка + позиционирование) обеспечивает 90% качества"
-```
-
-### Ошибка #3: Попытка вычислить ток вручную
-```
-❌ НЕПРАВИЛЬНО: "Вычисли ток по формуле I = U / R и вводи вручную"
-✅ ПРАВИЛЬНО: "Аппарат сам подаст тестовый импульс, измерит R и установит нужный I"
-```
-
----
-
-## Нормативные ссылки
-
-1. **ГОСТ Р 52779-2007** — Фасонные части из полиэтилена. Технические условия.
-2. **ГОСТ 32415-2013** — Фасонные части из полиэтилена и полипропилена. Общие технические условия.
-3. **СП 42-103-2003** — Проектирование и строительство водопроводов из полиэтиленовых труб. Своды правил.
-
----
-
-## Стиль проекта
-
-Этот проект воплощает философию **"Мера дважды, режь один раз"** — лучше потратить время на анализ и критику неправильного подхода, чем искать скрытые непровары в готовом трубопроводе.
-
----
-
-# Phased Array Robotics (ФАР) — New Initiative
-
-**Новое расширение:** Модуль управления фазированной антенной решеткой для робота.
-
-## 📡 ФАР MVP (Минимальный жизнеспособный продукт)
-
-**Статус:** Alpha, Phase 1 (развиваемый функционал)  
-**Директория:** `phased_array/`
-
-### Быстрый старт
-
+### Local Testing
 ```bash
-# Инициализация RF модуля
-python3 -c "
-from phased_array import RFModule
-rf = RFModule()
-rf.initialize()
-print(f'RF Module ready: {rf.get_chip_info()}')
-"
-
-# Запуск тестов
-python3 -m pytest phased_array/tests/ -v
-```
-
-### Этапы разработки
-
-| Этап | Статус | Функциональность | Сроки |
-|------|--------|-----------------|-------|
-| **Phase 1: MVP** | 🟢 Active | Готовые RF модули, управление TX/RX, логирование | Неделя 1-3 |
-| **Phase 2: Optimization** | 🟡 Planned | Цифровое управление фазой, адаптивный луч | Неделя 4-6 |
-| **Phase 3: Custom AESA** | 🔴 Future | KiCad проект, FPGA, цифровое формирование луча | Неделя 7-12 |
-
-### Компоненты MVP
-
-```
-phased_array/
-├── config.py              # RF параметры (5.8 ГГц, +20 дБм, и т.д.)
-├── rf_module.py          # API Qorvo / Wi-Fi 7 чипсета
-├── beamforming.py        # Алгоритмы формирования луча
-├── power_manager.py      # Адаптивное управление мощностью TX
-├── data_logger.py        # Логирование метрик (RSSI, температура)
-├── tests/                # 15+ тестов (pytest)
-└── README.md            # Подробная документация
-```
-
-### Требования к RF системе
-
-| Требование | Значение |
-|-----------|----------|
-| Частота | 5.15–5.85 ГГц (Wi-Fi 5/6/7) |
-| Мощность TX | 14–22 дБм |
-| Чувствительность RX | -82 дБм @ 10 Mbps |
-| Пропускная способность | ≥300 Мбит/с (видеопоток) |
-| Задержка (latency) | <50 мс |
-| Диапазон | 50–100 м (открытое пространство) |
-
-### Ключевые возможности
-
-- ✅ **Адаптивное управление мощностью TX** — регулировка в зависимости от RSSI
-- ✅ **Формирование луча** — направление в целевом направлении (азимут/возвышение)
-- ✅ **Тепловой контроль** — автоматическое дросселирование при перегреве
-- ✅ **Логирование метрик** — RSSI, фаза, температура в JSON/CSV
-- ✅ **100% PEP8** — читаемость кода, типизация, тесты
-
-### BOM MVP (~$545)
-
-| Позиция | Компонент | Стоимость |
-|---------|-----------|-----------|
-| 1 | Qorvo QPM56xx Eval Board | $250 |
-| 2 | RF кабели LMR-100 | $30 |
-| 3 | Разъемы и монтаж | $80 |
-| 4 | FPGA Xilinx Zynq-7010 | $150 |
-| 5 | Прочие компоненты | $35 |
-
-### Интеграция с VKTEST
-
-```python
-# В control/state_machine.py добавить RF состояния
-from phased_array import RFModule, BeamForming
-
-class RobotController:
-    def __init__(self):
-        self.rf = RFModule()
-        self.rf.initialize()  # Инициализация при старте
-        self.beamforming = BeamForming()
-    
-    def control_loop(self):
-        # Основная логика робота
-        rssi = self.rf.get_rssi()
-        if rssi < -80:  # Слабый сигнал
-            self.beamforming.scan_beam_pattern()  # Поиск луча
-```
-
-### Документация
-
-- 📋 [TZ_PHASED_ARRAY_MVP.md](docs/TZ_PHASED_ARRAY_MVP.md) — Полное техническое задание
-- 📖 [phased_array/README.md](phased_array/README.md) — Гайд разработчика
-- 🧪 [phased_array/tests/](phased_array/tests/) — Примеры и тесты
-
-### Быстрые ссылки
-
-```bash
-# Развернуть окружение
-python3 -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
-
-# Тесты
-pytest phased_array/tests/ -v --cov=phased_array
-
-# Отладка
-python3 -c "from phased_array import *; help(RFModule)"
+python robotics/autonomous_agent_main.py --use-mock-hardware
 ```
 
----
+### Docker Deployment
+```bash
+docker build -t rov-agent:latest .
+docker-compose up -d
+curl http://localhost:8080/health
+```
 
-**Версия:** 1.0 (Welder System) + 1.0-alpha (ФАР MVP)  
-**Дата:** 2026-07-08  
-**Статус:** Dual-mode project (welding + robotics communication)
+## Mission Phases
+
+### Phase 1: Preflight (30 min)
+Execute 33-item checklist: battery, sensors, thrusters, thermal
+
+### Phase 2: Diving (variable)
+Silent mode: SQLite buffering + local FSM (no Firebase TX)
+PID maintains depth, sonar buffers locally, autonomous decisions
+
+### Phase 3: Surface Sync (10 min)
+Upload buffered telemetry, receive commands, charge battery
+
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| `docs/ARCHITECTURE_DECISION_RECORD.md` | Event-driven model rationale |
+| `docs/ADVANCED_ARCHITECTURE_SYNTHESIS.md` | Dual-stack channel, FSM, blind spot solutions |
+| `docs/OPERATIONAL_STANDARDS_99.md` | 99 operational instructions + PID tuning |
+| `docs/MMWAVE_RESEARCH_3D_SCANNING.md` | Hardware analysis (Pixel 10, TI IWR6843) |
+
+## Configuration
+
+Create `.env`:
+```bash
+FIREBASE_PROJECT_ID=your-project
+MQTT_BROKER_URL=mqtt://localhost:1883
+ROBOT_ID=rov-001
+LOG_LEVEL=DEBUG
+```
+
+## Development
+
+```bash
+pytest robotics/tests/ -v          # Run tests
+black robotics/                    # Format code
+pylint robotics/                   # Lint
+mypy robotics/                     # Type check
+```
+
+## Troubleshooting
+
+**Robot not responding:**
+```bash
+mosquitto_sub -h localhost -t "robot/heartbeat"  # Check MQTT
+echo -n "S" > /dev/ttyUSB0                        # Check watchdog
+```
+
+**Depth oscillation:**
+Reduce Kp (proportional gain), increase Kd (derivative)
+
+**Battery drain:**
+Disable WebRTC during dive, reduce sonar FPS, check motor current
+
+## Support
+
+Generate diagnostic bundle:
+```bash
+docker exec rov_agent python robotics/diagnostics.py --bundle
+```
+
+Post-mission analysis:
+```bash
+python robotics/scripts/plot_mission.py /tmp/rov_buffer_rov-001.db
+```
+
+## References
+
+- Protocol Buffers: `robotics/protocol/robot_data.proto`
+- Motor Control: `robotics/motor_control/pid_depth_controller.py`
+- Autonomy Engine: `robotics/autonomy_engine/self_aware_agent.py`
+- Docker: `docker-compose.yml` + `Dockerfile`
+
+## Version History
+
+| Version | Date | Status |
+|---|---|---|
+| 1.0 | 2026-07-08 | Architecture Design Complete |
+| 0.9 | 2026-07-01 | Advanced Synthesis |
+| 0.8 | 2026-06-25 | Protocol Buffers |
+| 0.7 | 2026-06-20 | Autonomy Engine |
+| 0.6 | 2026-06-15 | Architecture Decision |
+
+**Next Milestone:** Field deployment (Phase 3: WebRTC streaming)
+
