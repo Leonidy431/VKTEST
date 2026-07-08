@@ -65,7 +65,7 @@ class RFModule:
             self.state = RFState.ERROR
             raise ValueError('Invalid Config parameters')
 
-        self.logger.info(f'RF Module initialized: chip={chip}, freq={frequency_hz/1e9:.2f} GHz')
+        self.logger.info(f'RF Module initialized: chip={chip}, freq={self.frequency_hz/1e9:.2f} GHz')
 
     def initialize(self) -> bool:
         """

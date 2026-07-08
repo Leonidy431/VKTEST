@@ -37,17 +37,20 @@ class TestRFModuleInit:
 
     def test_initialization_invalid_config(self):
         """Инициализация при невалидном конфиге (симуляция)."""
-        # Сохранить оригинальное значение
+        # Сохранить оригинальные значения
         orig_freq = Config.FREQUENCY_CENTER_HZ
+        orig_min = Config.FREQUENCY_MIN_HZ
         try:
-            # Поломать конфиг
-            Config.FREQUENCY_CENTER_HZ = 100e6  # Слишком низко
-            rf = RFModule()
-            # Config.validate() вернет False
-            assert Config.validate() is False
+            # Поломать конфиг (центральная частота ниже минимума)
+            Config.FREQUENCY_MIN_HZ = 5.5e9
+            Config.FREQUENCY_CENTER_HZ = 4.0e9  # Вне диапазона
+            # Config.validate() вернет False, и RFModule.__init__ выбросит исключение
+            with pytest.raises(ValueError):
+                rf = RFModule()
         finally:
             # Восстановить конфиг
             Config.FREQUENCY_CENTER_HZ = orig_freq
+            Config.FREQUENCY_MIN_HZ = orig_min
 
 
 class TestRFModuleRX:
@@ -206,5 +209,5 @@ class TestRFModuleRepr:
         rf.initialize()
         repr_str = repr(rf)
         assert 'RFModule' in repr_str
-        assert 'IDLE' in repr_str
+        assert 'idle' in repr_str.lower()  # state='idle' (lowercase)
         assert 'GHz' in repr_str

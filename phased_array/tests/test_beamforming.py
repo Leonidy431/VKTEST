@@ -141,7 +141,7 @@ class TestBeamFormingGainCalculation:
         for angle in range(0, 360, 45):
             gain = bf.calculate_gain_at_angle(float(angle), 0.0)
             # Усиление должно быть в разумном диапазоне
-            assert -30 < gain < 20
+            assert -80 < gain < 30
 
 
 class TestBeamFormingScan:

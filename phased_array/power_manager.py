@@ -9,6 +9,7 @@ Features:
 """
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import Optional
 from enum import Enum
@@ -237,6 +238,3 @@ class PowerManager:
             f'PowerManager(thermal_state={self.thermal_state.value}, '
             f'pa_temp={self.pa_temperature_c:.1f}°C)'
         )
-
-
-import math
