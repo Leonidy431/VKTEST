@@ -205,6 +205,122 @@ Q = (U² / R) · t
 
 ---
 
-**Версия:** 1.0  
-**Дата:** 2026-07-07  
-**Статус:** Техническое задание сформулировано
+# Phased Array Robotics (ФАР) — New Initiative
+
+**Новое расширение:** Модуль управления фазированной антенной решеткой для робота.
+
+## 📡 ФАР MVP (Минимальный жизнеспособный продукт)
+
+**Статус:** Alpha, Phase 1 (развиваемый функционал)  
+**Директория:** `phased_array/`
+
+### Быстрый старт
+
+```bash
+# Инициализация RF модуля
+python3 -c "
+from phased_array import RFModule
+rf = RFModule()
+rf.initialize()
+print(f'RF Module ready: {rf.get_chip_info()}')
+"
+
+# Запуск тестов
+python3 -m pytest phased_array/tests/ -v
+```
+
+### Этапы разработки
+
+| Этап | Статус | Функциональность | Сроки |
+|------|--------|-----------------|-------|
+| **Phase 1: MVP** | 🟢 Active | Готовые RF модули, управление TX/RX, логирование | Неделя 1-3 |
+| **Phase 2: Optimization** | 🟡 Planned | Цифровое управление фазой, адаптивный луч | Неделя 4-6 |
+| **Phase 3: Custom AESA** | 🔴 Future | KiCad проект, FPGA, цифровое формирование луча | Неделя 7-12 |
+
+### Компоненты MVP
+
+```
+phased_array/
+├── config.py              # RF параметры (5.8 ГГц, +20 дБм, и т.д.)
+├── rf_module.py          # API Qorvo / Wi-Fi 7 чипсета
+├── beamforming.py        # Алгоритмы формирования луча
+├── power_manager.py      # Адаптивное управление мощностью TX
+├── data_logger.py        # Логирование метрик (RSSI, температура)
+├── tests/                # 15+ тестов (pytest)
+└── README.md            # Подробная документация
+```
+
+### Требования к RF системе
+
+| Требование | Значение |
+|-----------|----------|
+| Частота | 5.15–5.85 ГГц (Wi-Fi 5/6/7) |
+| Мощность TX | 14–22 дБм |
+| Чувствительность RX | -82 дБм @ 10 Mbps |
+| Пропускная способность | ≥300 Мбит/с (видеопоток) |
+| Задержка (latency) | <50 мс |
+| Диапазон | 50–100 м (открытое пространство) |
+
+### Ключевые возможности
+
+- ✅ **Адаптивное управление мощностью TX** — регулировка в зависимости от RSSI
+- ✅ **Формирование луча** — направление в целевом направлении (азимут/возвышение)
+- ✅ **Тепловой контроль** — автоматическое дросселирование при перегреве
+- ✅ **Логирование метрик** — RSSI, фаза, температура в JSON/CSV
+- ✅ **100% PEP8** — читаемость кода, типизация, тесты
+
+### BOM MVP (~$545)
+
+| Позиция | Компонент | Стоимость |
+|---------|-----------|-----------|
+| 1 | Qorvo QPM56xx Eval Board | $250 |
+| 2 | RF кабели LMR-100 | $30 |
+| 3 | Разъемы и монтаж | $80 |
+| 4 | FPGA Xilinx Zynq-7010 | $150 |
+| 5 | Прочие компоненты | $35 |
+
+### Интеграция с VKTEST
+
+```python
+# В control/state_machine.py добавить RF состояния
+from phased_array import RFModule, BeamForming
+
+class RobotController:
+    def __init__(self):
+        self.rf = RFModule()
+        self.rf.initialize()  # Инициализация при старте
+        self.beamforming = BeamForming()
+    
+    def control_loop(self):
+        # Основная логика робота
+        rssi = self.rf.get_rssi()
+        if rssi < -80:  # Слабый сигнал
+            self.beamforming.scan_beam_pattern()  # Поиск луча
+```
+
+### Документация
+
+- 📋 [TZ_PHASED_ARRAY_MVP.md](docs/TZ_PHASED_ARRAY_MVP.md) — Полное техническое задание
+- 📖 [phased_array/README.md](phased_array/README.md) — Гайд разработчика
+- 🧪 [phased_array/tests/](phased_array/tests/) — Примеры и тесты
+
+### Быстрые ссылки
+
+```bash
+# Развернуть окружение
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Тесты
+pytest phased_array/tests/ -v --cov=phased_array
+
+# Отладка
+python3 -c "from phased_array import *; help(RFModule)"
+```
+
+---
+
+**Версия:** 1.0 (Welder System) + 1.0-alpha (ФАР MVP)  
+**Дата:** 2026-07-08  
+**Статус:** Dual-mode project (welding + robotics communication)
