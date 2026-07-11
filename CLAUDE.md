@@ -340,6 +340,51 @@ PREFLIGHT (33 checks) → DIVING (silent mode, local FSM)
 - Motor tuning changes → update `docs/THRUSTER_SPECIFICATION_TEMPLATE.md`
 - Platform decisions → update `docs/HARDWARE_PLATFORM_SELECTION.md`
 
+### Session Continuity Logging (Every 30 Minutes)
+
+**Rule:** During active development, create structured checkpoint logs every 30 minutes to enable fast context recovery for future Claude instances.
+
+**Implementation:**
+1. **File:** `SESSION_CONTINUITY.md` (single source of truth)
+2. **Update Interval:** Every 30 minutes of active work
+3. **Template Sections:**
+   - ✅ Completed Tasks (with commit hashes)
+   - 📊 Test Results (pass/fail counts)
+   - 📁 Files Created/Modified
+   - 🎯 Next Steps (prioritized, actionable)
+   - 💡 Key Insights (what problem was solved)
+   - 📞 Session Metadata (duration, tokens spent)
+
+**Format:** PEP8-compliant Markdown with clear hierarchies
+
+**Trigger:** Every 30-minute wall-clock checkpoint OR after each major task completion (whichever comes first)
+
+**Example:**
+```
+## ✅ Completed Tasks (Last 30 Min)
+
+### 1. Created UWB Module (e013c2a)
+- 99 use-cases across 8 domains
+- Physical constraints documented (underwater limitation: GHz attenuation)
+- VKTEST topside integration blueprint
+
+### 2. Added Session Continuity Rule
+- Implemented 30-min checkpoint logging
+- Updated CLAUDE.md with guidelines
+
+## 🎯 Next Steps (Prioritized)
+
+1. Create GrapheneOS integration spec
+2. WebRTC sonar streaming
+3. Firebase real DB integration
+```
+
+**Why This Matters:**
+- Container restarts often interrupt long contexts
+- Session logs enable 90% context recovery in <2 minutes
+- Team collaboration: future instances see what was decided + why
+- Prevents duplicate work
+
 ---
 
 ## Common Workflows
