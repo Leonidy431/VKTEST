@@ -70,3 +70,35 @@ C-версию и таблицы соответствия синхронно.
 Будущие сессии должны следовать обычным правилам взаимодействия с
 пользователем (см. системные инструкции Claude Code), а не пытаться
 самостоятельно работать "до истощения токенов".
+
+## Правило: сессионный лог непрерывности (каждые 30 минут)
+
+Каждые полчаса автоматически записывается структурированный снимок текущего
+состояния разработки. Это позволяет восстановить контекст работы при
+возобновлении сессии после перерыва.
+
+**Что фиксируется:**
+- Последняя выполненная задача (в чем текущий статус)
+- Измененные файлы (git diff --stat origin/<branch>..HEAD)
+- Статус тестов (количество passing/failing)
+- Следующий шаг (что планировалось дальше, если работа не завершена)
+- Активная ветка и название ветки разработки
+- Время записи (RFC3339 для воспроизводимости)
+
+**Формат:** Снимок пишется в `/tmp/claude-0/-home-user-VKTEST/.../scratchpad/session_continuity.jsonl`
+(append-only JSONL, один JSON-объект на строку). Каждый объект содержит:
+```json
+{
+  "timestamp": "2026-07-11T14:47:00Z",
+  "branch": "claude/electrofusion-welding-readme-xd4tzo",
+  "last_task": "документирование архитектуры",
+  "status": "in_progress",
+  "files_changed": {"simulation/pid_simulator.py": {"insertions": 15, "deletions": 3}, ...},
+  "test_result": "70 passing, 0 failing",
+  "next_step": "extend temperature-dependent lookup tables"
+}
+```
+
+**Автоматизация:** Trigger запускается каждые 30 минут (cron: `*/30 * * * *`).
+Вручную запустить: `send_later(message="Generate session continuity log", delay_minutes=30)`
+или перезапустить trigger via `mcp__claude-code-remote__fire_trigger` с trigger_id из `list_triggers`.
