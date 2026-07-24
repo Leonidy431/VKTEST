@@ -94,6 +94,118 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
+## Evidence-Driven Development & Expert Consensus Framework
+
+**Core Principle:** All major architectural decisions, algorithm implementations, and system design choices must be grounded in peer-reviewed scientific literature and validated through expert consensus.
+
+### Scientific Evidence Requirement
+
+**When implementing new features or algorithms:**
+
+1. **Search scientific literature** from:
+   - PubMed (pubmed.ncbi.nlm.nih.gov) — biomedical, robotics, sensing
+   - Google Scholar (scholar.google.com) — general computer science, algorithms
+   - IEEE Xplore (ieeexplore.ieee.org) — electrical engineering, autonomous systems
+   - ArXiv (arxiv.org) — preprints in control theory, machine learning
+
+2. **Document the source** in code comments and architectural decisions:
+   ```python
+   # PID tuning based on Ziegler-Nichols method (Ziegler & Nichols, 1942)
+   # See: J. Applied Mechanics, Vol. 64, No. 3, pp. 759-768
+   # Adapted for marine environment per Davis et al. (2019), "Underwater Vehicle Control"
+   ```
+
+3. **Capture DOI or publication metadata** in decision records (docs/*.md files)
+
+### 12-Phase Implementation Roadmap
+
+All major features follow this structured deployment:
+
+```
+Phase 1:   Scientific Literature Review (gather 20+ peer-reviewed papers)
+Phase 2:   Algorithm Specification (formal pseudocode with citations)
+Phase 3:   Simulation/Prototype (mock hardware, synthetic data)
+Phase 4:   Unit Test Suite (>90% code coverage required)
+Phase 5:   Integration Testing (subsystem interactions)
+Phase 6:   Performance Benchmarking (metrics vs. literature baselines)
+Phase 7:   Edge Case Analysis (failure modes from papers)
+Phase 8:   Robustness Testing (stress tests, adversarial inputs)
+Phase 9:   Documentation Freeze (finalize API, create examples)
+Phase 10:  Deployment Preparation (Docker, CI/CD, monitoring)
+Phase 11:  Staged Rollout (canary deployment, gradual traffic increase)
+Phase 12:  Validation & Learnings (post-deployment metrics, session continuity log)
+```
+
+### 48-Parameter Expert Consensus Evaluation
+
+**When facing ambiguity or multiple viable solutions:**
+
+1. **Generate candidate solutions** (minimum 5, typically 15-50 options)
+2. **Define 48 evaluation parameters** across these categories:
+   - **Performance (8):** latency, throughput, accuracy, precision, recall, F1-score, memory, CPU
+   - **Reliability (8):** MTBF, fault tolerance, error recovery, graceful degradation, timeout handling, watchdog integration, idempotency, atomicity
+   - **Safety (8):** collision avoidance, thermal limits, battery thresholds, pressure constraints, watchdog heartbeat, emergency stop response, error propagation, leak detection
+   - **Maintainability (8):** code clarity, test coverage, documentation quality, modularity, reusability, debugging difficulty, technical debt, future extensibility
+   - **Operational (8):** deployment complexity, configuration effort, monitoring overhead, log verbosity, rollback capability, downtime risk, operator training, observability
+   - **Scientific Rigor (4):** citation count, h-index of authors, peer review status, reproducibility of results
+
+3. **Assemble 32-member expert panel** across disciplines:
+   - **8 Control Systems Engineers** (PID tuning, FSM design, feedback loops)
+   - **6 Marine Robotics Specialists** (AUV operations, subsea constraints, acoustic comms)
+   - **6 ML/AI Researchers** (neural networks, reinforcement learning, sensor fusion)
+   - **4 Power Systems Engineers** (battery management, energy optimization, thermal modeling)
+   - **3 Protocol/Networking Engineers** (Firebase, MQTT, WebRTC, band-switching)
+   - **2 Safety/Reliability Engineers** (fault tolerance, redundancy, graceful degradation)
+   - **2 Hardware Integration Specialists** (Raspberry Pi constraints, sensor integration)
+   - **1 Project Architect** (tiebreaker, final authority)
+
+4. **Scoring method:**
+   - Each expert independently scores each parameter on 0-10 scale
+   - Aggregate via median (outliers rejected)
+   - Weight parameters by domain relevance (safety=2.0×, performance=1.5×, others=1.0×)
+   - Calculate weighted aggregate score for each candidate solution
+   - **Decision rule:** Choose solution with highest median consensus score ≥7.0
+   - **If no solution ≥7.0:** iterate on designs and re-score
+
+5. **Document the decision:**
+   ```
+   ## Decision: [Feature Name] Algorithm Selection
+   
+   **Problem:** [Define ambiguity]
+   **Candidates Evaluated:** [List 5+ options with sources]
+   **Expert Panel:** 32 members, domains: [list]
+   **Scoring Parameters:** 48 parameters weighted by [weights]
+   **Winner:** [Solution name] with consensus score 8.2/10
+   **Justification:** [Cite top 3 scoring parameters]
+   **References:** [DOI links to supporting papers]
+   **Implementation Timeline:** [12-phase roadmap with milestones]
+   ```
+
+### Integration with Karpathy Principles
+
+The expert consensus framework **enhances** (not replaces) the Karpathy principles:
+
+- **Think Before Coding:** Requires literature review + 48-parameter evaluation before design
+- **Simplicity First:** Expert panel recommends simplest solution that achieves ≥7.0 consensus
+- **Surgical Changes:** Each phase has explicit acceptance criteria; no scope creep
+- **Goal-Driven Execution:** Metrics validated against peer-reviewed baselines
+
+### When to Invoke Expert Consensus
+
+**Automatic triggers:**
+- Any algorithm touching PID control, FSM logic, battery management, or safety thresholds
+- Network protocol selection (Firebase vs MQTT vs WebRTC)
+- Sensor fusion or multi-modal integration
+- Machine learning model selection or hyperparameter tuning
+- Major architectural changes to any Layer (1-4)
+
+**Optional triggers:**
+- Bug fixes in non-critical paths (use simplified consensus for <5 candidates)
+- Performance optimization in well-established code
+- Documentation updates (no consensus needed, technical writer discretion)
+
+---
+
 ## Quick Commands
 
 ### Setup
