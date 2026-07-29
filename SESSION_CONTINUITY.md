@@ -91,6 +91,37 @@
 - **Testing:** 26/26 tests passing (100%) with mocking of socket layer
 - **Status:** ✓ Committed (4f1c88f) and pushed
 
+### Task #7: Telemetry Integration Tests (2119eb0)
+- **Files:** `tests/test_telemetry_integration.py` (651 lines)
+- **What:** Comprehensive integration tests for telemetry system (Firebase + MQTT + SQLite buffer)
+- **Test Suites (21 tests, 100% pass rate):**
+  1. **TestTelemetryEngineOnlineMode** (4 tests) — Engine initialization, online send, offline fallback, connectivity tracking
+  2. **TestTelemetryEngineOfflineBuffering** (2 tests) — Buffer persistence across restarts, duplicate prevention
+  3. **TestBufferSyncWithFirebase** (2 tests) — Sync buffered data, partial failure handling
+  4. **TestMQTTFallbackIntegration** (2 tests) — QoS 2 publishing, fallback chain (Firebase → MQTT → buffer)
+  5. **TestBandwidthConstrainedTelemetry** (2 tests) — Priority ordering, constraint-based dropping
+  6. **TestConcurrentTelemetrySending** (2 tests) — Concurrent sends during sync, responsive sync thread
+  7. **TestSurfaceSyncAggregation** (2 tests) — Data aggregation, statistics correctness
+  8. **TestConnectivityRecovery** (3 tests) — DNS failure recovery, repeated failure tracking, timeout handling
+  9. **TestEndToEndMission** (2 tests) — Full mission cycle (preflight→dive→surface→sync), buffer growth limits
+- **Test Coverage:**
+  - Online/offline scenarios with proper fallback
+  - Network recovery with data sync
+  - Concurrent operations (threading safety)
+  - Bandwidth constraints with priority queuing
+  - MQTT QoS 2 exactly-once delivery
+  - Buffer persistence (SQLite with hash deduplication)
+  - Connectivity failure modes (DNS, timeout, OS errors)
+  - End-to-end mission simulation
+- **Key Validations:**
+  - Firebase direct send when online
+  - SQLite buffering when offline
+  - Automatic sync on reconnection
+  - Priority-based packet dropping under constraints
+  - No race conditions with concurrent sends
+  - Proper socket cleanup (success and failure paths)
+- **Status:** ✓ Committed (2119eb0) and pushed
+
 ### Task #8: Production Deployment Guide (f3659fe)
 - **Files:** `docs/PRODUCTION_DEPLOYMENT_GUIDE.md` (969 lines)
 - **What:** Complete deployment lifecycle for VKTEST AUV on Raspberry Pi 3
@@ -117,12 +148,12 @@
 
 ## 📊 Metrics (Current Session)
 
-**Commits:** 5 new commits (875734f, 3cf8fff, fbbc1d3, cb789e7, 4f1c88f, f3659fe)  
-**Code Added:** ~2,400 lines (production code + tests + documentation)  
-**Tests Created:** 85 new unit tests (all passing)  
-**Test Coverage:** Battery (25), Bandwidth (34), MQTT (26)  
+**Commits:** 6 new commits (875734f, 3cf8fff, fbbc1d3, cb789e7, 4f1c88f, f3659fe, 2119eb0)  
+**Code Added:** ~3,050 lines (production code + tests + documentation)  
+**Tests Created:** 106 new unit+integration tests (all passing)  
+**Test Coverage:** Battery (25), Bandwidth (34), MQTT DNS (26), Telemetry Integration (21)  
 **Documentation:** 1,979 lines across 2 strategic docs (UWB, Multipath, Deployment)  
-**Token Usage:** ~100k of 200k budget (50% utilization)
+**Token Usage:** ~120k of 200k budget (60% utilization)
 
 ---
 
