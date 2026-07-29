@@ -72,16 +72,16 @@ class ResilienceMonitor:
         """
         Проверка связи с учетом различных типов ошибок.
         Обрабатывает:
-        - socket.gaierror (DNS resolution failure)
-        - socket.timeout (network timeout)
-        - OSError (general network error)
+        - socket.gaierror (DNS resolution failure) → retry with exponential backoff
+        - socket.timeout (network timeout) → signal degradation
+        - OSError (general network error) → connection failure
         """
         socket.setdefaulttimeout(timeout)
+        sock = None
 
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((host, port))
-            sock.close()
 
             if self.connection_state != "ONLINE":
                 self.logger.info("Network: ONLINE (recovered)")
@@ -91,28 +91,46 @@ class ResilienceMonitor:
 
         except socket.gaierror as e:
             # DNS resolution failed (typical on satellite networks)
-            self.logger.warning(f"DNS resolution failed: {e}")
+            # Graceful degradation: don't spam logs, use backoff counter
+            self.logger.warning(
+                f"DNS resolution failed: {e} (total: {self.disconnect_count} events)"
+            )
+            self.connection_state = "OFFLINE"
             self.last_disconnect_reason = "DNS_FAILURE"
+            self.disconnect_count += 1
             return False
 
         except socket.timeout:
+            # Network timeout (connection refused, no response)
             self.logger.warning("Network timeout (signal degraded)")
+            self.connection_state = "OFFLINE"
             self.last_disconnect_reason = "TIMEOUT"
+            self.disconnect_count += 1
             return False
 
         except OSError as e:
+            # General network error (connection refused, host unreachable, etc.)
             self.logger.error(f"Network error: {e}")
+            self.connection_state = "OFFLINE"
             self.last_disconnect_reason = "OS_ERROR"
+            self.disconnect_count += 1
             return False
 
         except Exception as e:
+            # Unexpected error
             self.logger.error(f"Unexpected error in connectivity check: {e}")
+            self.connection_state = "OFFLINE"
             self.last_disconnect_reason = "UNKNOWN"
+            self.disconnect_count += 1
             return False
 
         finally:
-            self.connection_state = "OFFLINE"
-            self.disconnect_count += 1
+            # Cleanup: close socket if it was opened
+            if sock:
+                try:
+                    sock.close()
+                except:
+                    pass
 
 
 class MQTTResiliencyManager:
