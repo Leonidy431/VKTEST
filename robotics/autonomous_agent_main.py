@@ -33,6 +33,9 @@ from motor_control.pid_depth_controller import (
     PIDDepthController, DepthSensor, ThrusterDriver, PIDGains, MockDepthSensor, MockThrusterDriver
 )
 from protocol.protobuf_serializer import ProtobufSerializer, GpsCoordinates, SensorData
+from watchdog.esp32_watchdog import (
+    ESP32Watchdog, MockESP32Watchdog, WatchdogConfig
+)
 
 
 class OperationalPhase(Enum):
@@ -187,8 +190,16 @@ class AutonomousAgent:
         self.buffer_db_path = f"/tmp/rov_buffer_{self.robot_id}.db"
         self._initialize_buffer()
 
-        # Watchdog communication
-        self.watchdog_serial_port = None  # TODO: Open /dev/ttyUSB0
+        # Watchdog communication (ESP32-S3 external watchdog)
+        watchdog_config = WatchdogConfig(
+            serial_port="/dev/ttyUSB0",
+            heartbeat_interval_sec=10.0,
+            timeout_threshold_sec=30.0
+        )
+        if self.use_mock_hardware:
+            self.watchdog = MockESP32Watchdog(watchdog_config)
+        else:
+            self.watchdog = ESP32Watchdog(watchdog_config)
         self.watchdog_interval_sec = 10.0
 
     def _initialize_buffer(self):
@@ -236,6 +247,10 @@ class AutonomousAgent:
         self.running = True
         self.stop_event.clear()
 
+        # Start watchdog monitoring
+        self.watchdog.start_monitoring()
+        self.logger.info("Watchdog monitoring started")
+
         self.logger.info("Starting autonomous agent main loop...")
         self.main_loop_thread = threading.Thread(target=self._run_main_loop, daemon=True)
         self.main_loop_thread.start()
@@ -246,6 +261,10 @@ class AutonomousAgent:
         self.running = False
         self.stop_event.set()
         self.pid_controller.disable()
+
+        # Stop watchdog monitoring
+        self.watchdog.stop_monitoring()
+        self.logger.info("Watchdog monitoring stopped")
 
         if self.main_loop_thread:
             self.main_loop_thread.join(timeout=5.0)
@@ -452,9 +471,15 @@ class AutonomousAgent:
     def _send_watchdog_heartbeat(self):
         """Send heartbeat to ESP32 watchdog via UART."""
         try:
-            if self.watchdog_serial_port:
-                self.watchdog_serial_port.write(b'H')
+            # Register heartbeat with watchdog (this sends ACK to ESP32)
+            if self.watchdog.receive_heartbeat():
                 self.state.watchdog_count += 1
+            else:
+                self.logger.warning("Watchdog did not accept heartbeat (may be in recovery)")
+
+            # Also include watchdog status in system state
+            watchdog_status = self.watchdog.get_status()
+            self.state.error_flags |= (watchdog_status["timeout_count"] << 16)
         except Exception as e:
             self.logger.error(f"Watchdog heartbeat error: {e}")
 
