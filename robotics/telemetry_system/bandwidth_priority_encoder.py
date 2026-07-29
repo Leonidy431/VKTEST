@@ -57,7 +57,7 @@ class CompressedTelemetry:
     def to_bytes(self) -> bytes:
         """Pack into fixed 12-byte payload."""
         return struct.pack(
-            '<BHHBBBBBB',
+            '<BHBhhBBbB',
             self.priority,
             self.timestamp,
             self.device_id,
@@ -74,7 +74,7 @@ class CompressedTelemetry:
         """Unpack from bytes."""
         (priority, timestamp, device_id, lat_delta, lon_delta,
          depth_m, battery_pct, temp_c, flags) = struct.unpack(
-            '<BHHBBBBBB', data)
+            '<BHBhhBBbB', data)
         return cls(
             priority=priority,
             timestamp=timestamp,
