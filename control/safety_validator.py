@@ -65,6 +65,11 @@ class SafetyValidator:
             return SafetyViolation(
                 "SHORT_CIRCUIT", f"Ток {current_a:.1f}А превышает лимит КЗ {self.limits.short_circuit_current_a}А"
             )
+        if current_a > self.limits.max_current_a:
+            return SafetyViolation(
+                "OVERCURRENT",
+                f"Ток {current_a:.1f}А превышает рабочий максимум {self.limits.max_current_a}А",
+            )
         if heatsink_temp_c > self.limits.critical_heatsink_temp_c:
             return SafetyViolation(
                 "OVERHEAT_CRITICAL",

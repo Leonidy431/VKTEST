@@ -54,6 +54,18 @@ def test_during_weld_detects_short_circuit(validator):
     assert result.code == "SHORT_CIRCUIT"
 
 
+def test_during_weld_detects_overcurrent(validator):
+    # 110А < ток <= 120А: превышает рабочий максимум, но не аппаратный
+    # лимит КЗ — ранее max_current_a вообще не проверялся (найдено аудитом).
+    result = validator.check_during_weld(current_a=115.0, heatsink_temp_c=40.0)
+    assert result.code == "OVERCURRENT"
+
+
+def test_during_weld_passes_just_below_overcurrent_threshold(validator):
+    result = validator.check_during_weld(current_a=110.0, heatsink_temp_c=40.0)
+    assert result is None
+
+
 def test_during_weld_detects_critical_overheat(validator):
     result = validator.check_during_weld(current_a=35.0, heatsink_temp_c=85.0)
     assert result.code == "OVERHEAT_CRITICAL"

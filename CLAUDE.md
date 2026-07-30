@@ -22,6 +22,9 @@ python3 -m pytest tests/ -v
 # Быстрый прогон без вывода
 python3 -m pytest tests/ -q
 
+# Покрытие тестами (цель: 100% на simulation/control/critical_analysis/protocol)
+python3 -m pytest tests/ --cov=simulation --cov=control --cov=critical_analysis --cov=protocol --cov-report=term-missing -q
+
 # Проверка стиля PEP 8 (используется в docs/session_log.py)
 python3 -m pycodestyle docs/session_log.py
 

@@ -2,6 +2,9 @@ import pytest
 
 from protocol.traceability import WeldSessionRecord, sign_record, verify_record, finalize_record
 
+KEY = b"test-device-secret-key-not-for-production"
+OTHER_KEY = b"a-different-secret-key"
+
 
 @pytest.fixture
 def record():
@@ -21,27 +24,48 @@ def record():
 
 
 def test_finalize_record_sets_signature(record):
-    finalize_record(record)
+    finalize_record(record, KEY)
     assert record.signature is not None
-    assert len(record.signature) == 64  # SHA-256 hex digest length
+    assert len(record.signature) == 64  # HMAC-SHA256 hex digest length
 
 
 def test_verify_record_accepts_valid_signature(record):
-    finalize_record(record)
-    assert verify_record(record) is True
+    finalize_record(record, KEY)
+    assert verify_record(record, KEY) is True
 
 
 def test_verify_record_rejects_tampered_data(record):
-    finalize_record(record)
+    finalize_record(record, KEY)
     record.energy_delivered_j = 9999.0  # подделка протокола
-    assert verify_record(record) is False
+    assert verify_record(record, KEY) is False
+
+
+def test_verify_record_rejects_tampered_data_even_if_resigned(record):
+    # Атака: подрядчик меняет поле и пересчитывает подпись тем же публичным
+    # алгоритмом. Без секретного ключа новая "подпись" не совпадет с
+    # ожидаемой при верификации доверенной стороной, знающей настоящий ключ.
+    finalize_record(record, KEY)
+    record.energy_delivered_j = 9999.0
+    record.signature = sign_record(record, OTHER_KEY)  # злоумышленник не знает KEY
+    assert verify_record(record, KEY) is False
 
 
 def test_verify_record_rejects_missing_signature(record):
-    assert verify_record(record) is False
+    assert verify_record(record, KEY) is False
 
 
 def test_sign_record_deterministic(record):
-    sig1 = sign_record(record)
-    sig2 = sign_record(record)
+    sig1 = sign_record(record, KEY)
+    sig2 = sign_record(record, KEY)
     assert sig1 == sig2
+
+
+def test_sign_record_differs_by_key(record):
+    sig1 = sign_record(record, KEY)
+    sig2 = sign_record(record, OTHER_KEY)
+    assert sig1 != sig2
+
+
+def test_sign_record_rejects_empty_key(record):
+    with pytest.raises(ValueError):
+        sign_record(record, b"")

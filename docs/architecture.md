@@ -23,7 +23,7 @@ critical_analysis/   "Скептичный критик" как код
 
 protocol/             формат данных и прослеживаемость
   barcode_parser.py      парсер 24-значного кода (упрощенная схема на базе ISO 12176-4)
-  traceability.py         SHA-256 подпись протоколов сварки
+  traceability.py         HMAC-SHA256 подпись протоколов сварки (секретный ключ)
   session_logger.py       JSONL append-only логирование
 
 firmware/             C-порт для ESP32-S3 (esp-idf) — см. firmware/README.md
@@ -35,7 +35,7 @@ firmware/             C-порт для ESP32-S3 (esp-idf) — см. firmware/RE
 
 hardware/              выбор компонентов
   platforms.md            топ-5 ESP32 плат из 10+ исследованных, 12 параметров
-  bom.csv                  перечень компонентов, ~$1324 без учета сборки
+  bom.csv                  перечень компонентов, ~$1326 без учета сборки
 
 tests/                70 тестов, покрывающих все Python-модули выше
 ```
@@ -54,7 +54,7 @@ tests/                70 тестов, покрывающих все Python-мо
            pid.update()                            — коррекция угла симистора
            safety_validator.check_during_weld()   — мониторинг обрыва/КЗ
       5. physics_engine.evaluate_weld_state()      — итоговый вердикт
-  → protocol/traceability.finalize_record()        — подпись SHA-256
+  → protocol/traceability.finalize_record()        — подпись HMAC-SHA256
   → protocol/session_logger.log()                  — запись в JSONL
 ```
 

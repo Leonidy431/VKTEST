@@ -9,10 +9,27 @@
 #define WELD_TARGET_VOLTAGE   39.5f
 #define MAINS_FREQ_HZ         50.0f
 #define CONTROL_LOOP_DT_S     0.02f  /* один полный цикл сети = 20мс при 50Гц */
+#define SAMPLING_PERIOD_MS    1      /* 1кГц опрос АЦП для True RMS, см. measurements.h */
 
 static pid_controller_t s_pid;
 static welding_state_machine_t s_sm;
 static safety_limits_t s_limits;
+
+/*
+ * Задача опроса АЦП — заполняет скользящие окна True RMS в measurements.c.
+ * Без нее measurements_get_voltage_rms()/measurements_get_current_rms()
+ * читают вечно обнуленные буферы: ток всегда 0А, и первая же итерация
+ * weld_control_task ошибочно фиксирует SAFETY_OPEN_CIRCUIT еще до входа
+ * в pid_update() (найдено при аудите — ранее эта задача отсутствовала).
+ */
+static void measurement_sampling_task(void *pvParameters)
+{
+    for (;;) {
+        measurements_read_voltage();
+        measurements_read_current();
+        vTaskDelay(pdMS_TO_TICKS(SAMPLING_PERIOD_MS));
+    }
+}
 
 /*
  * Задача управления сваркой — центральный цикл ~50 раз/сек, синхронизированный
@@ -50,6 +67,7 @@ void app_main(void)
     measurements_init();
     zero_crossing_init();
 
+    xTaskCreate(measurement_sampling_task, "meas_sampling", 2048, NULL, 12, NULL);
     xTaskCreate(weld_control_task, "weld_control", 4096, NULL, 10, NULL);
 
     /*

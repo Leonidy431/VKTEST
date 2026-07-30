@@ -66,3 +66,34 @@ def test_parse_rejects_bad_checksum(sample_data):
     corrupted = code[:-1] + str((int(code[-1]) + 1) % 10)
     with pytest.raises(BarcodeFormatError):
         parse_barcode(corrupted)
+
+
+def test_validate_checksum_rejects_wrong_length():
+    assert validate_checksum("12345") is False
+
+
+def test_validate_checksum_rejects_non_digit():
+    assert validate_checksum("2" * 23 + "X") is False
+
+
+def test_compute_check_digit_rejects_wrong_length_payload():
+    from protocol.barcode_parser import compute_check_digit
+
+    with pytest.raises(BarcodeFormatError):
+        compute_check_digit("123")
+
+
+def test_compute_check_digit_rejects_non_digit_payload():
+    from protocol.barcode_parser import compute_check_digit
+
+    with pytest.raises(BarcodeFormatError):
+        compute_check_digit("X" * 23)
+
+
+def test_encode_rejects_diameter_too_large_for_field_width(sample_data):
+    # Известное ограничение формата (см. protocol/barcode_format.md): поле
+    # diameter_mm — 2 цифры, максимум 99мм. Реальные муфты доходят до 630мм.
+    # encode_barcode должен явно упасть, а не молча обрезать/переполнить поле.
+    sample_data.diameter_mm = 110
+    with pytest.raises(BarcodeFormatError):
+        encode_barcode(sample_data)

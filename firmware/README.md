@@ -22,6 +22,11 @@ Python-логику (`simulation/`, `control/`) на C для ESP32-S3 в сре
 - `measurements.c`: чтение DS18B20 (температура) — заглушка, требует
   подключения компонента 1-Wire (например, `espressif/ds18b20` из ESP
   Component Registry) вместо самописного побитового драйвера.
+- ~~`measurements_read_voltage`/`measurements_read_current` нигде не
+  вызывались, из-за чего RMS-буферы оставались обнуленными и первая же
+  итерация `weld_control_task` ошибочно фиксировала `SAFETY_OPEN_CIRCUIT`~~
+  — исправлено: добавлена `measurement_sampling_task` (1кГц, `app_main.c`),
+  опрашивающая оба канала независимо от `weld_control_task`.
 - `zero_crossing.c`: ISR-обработчик перехода через ноль сейчас пустой —
   в текущей схеме `app_main.c` цикл управления опрашивается периодической
   FreeRTOS задачей (~50 Гц) вместо event-driven запуска из самого
@@ -42,7 +47,8 @@ Python-логику (`simulation/`, `control/`) на C для ESP32-S3 в сре
 | Параметр | Python (`control/safety_validator.py`) | C (`safety.c`) |
 |---|---|---|
 | min_input_voltage | 185.0 | 185.0f |
-| short_circuit_current_a | 120.0 | 120.0f |
+| max_current_a (мягкий предел, `OVERCURRENT`) | 110.0 | 110.0f |
+| short_circuit_current_a (аппаратный предел, `SHORT_CIRCUIT`) | 120.0 | 120.0f |
 | min_freq_hz / max_freq_hz | 45.0 / 65.0 | 45.0f / 65.0f |
 | max_heatsink_temp_c | 70.0 | 70.0f |
 | critical_heatsink_temp_c | 80.0 | 80.0f |

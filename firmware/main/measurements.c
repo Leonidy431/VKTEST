@@ -11,7 +11,14 @@
  * заводскую калибровку (99 факт #95).
  */
 #define VOLTAGE_DIVIDER_RATIO   17.0f  /* 56V -> ~3.3V на АЦП */
-#define ACS758_MV_PER_AMP       40.0f  /* ACS758LCB-050B: 40мВ/А */
+/*
+ * ACS758LCB-150B: 13.3мВ/А. Ранее здесь стояло 40.0f (чувствительность
+ * 050B-варианта, рассчитанного на 50А) при том, что short_circuit_current_a
+ * в safety.h равен 120А — 050B физически не мог измерить ток КЗ (насыщался
+ * бы задолго до порога). BOM обновлен на 150B (hardware/bom.csv), константа
+ * согласована с новым датчиком.
+ */
+#define ACS758_MV_PER_AMP       13.3f  /* ACS758LCB-150B: 13.3мВ/А */
 #define ACS758_ZERO_CURRENT_MV  1650.0f /* Vcc/2 при токе 0А */
 
 #define RMS_WINDOW_SIZE 20  /* окно для скользящего True RMS (при 1кГц ~20мс = 1 период 50Гц) */
@@ -21,7 +28,15 @@ static adc_cali_handle_t s_cali_handle = NULL;
 
 static float s_voltage_window[RMS_WINDOW_SIZE];
 static float s_current_window[RMS_WINDOW_SIZE];
-static int s_window_idx = 0;
+/*
+ * Раздельные индексы для каждого канала: измерение напряжения и тока не
+ * обязаны вызываться строго попарно 1:1 за каждый цикл (например, UI может
+ * опрашивать напряжение отдельно). Общий индекс, инкрементируемый только в
+ * measurements_read_current(), приводил бы к десинхронизации окон при любом
+ * несимметричном вызове каналов.
+ */
+static int s_voltage_idx = 0;
+static int s_current_idx = 0;
 
 void measurements_init(void)
 {
@@ -56,7 +71,8 @@ float measurements_read_voltage(void)
     adc_cali_raw_to_voltage(s_cali_handle, raw, &mv);
     float voltage = (mv / 1000.0f) * VOLTAGE_DIVIDER_RATIO;
 
-    s_voltage_window[s_window_idx % RMS_WINDOW_SIZE] = voltage;
+    s_voltage_window[s_voltage_idx % RMS_WINDOW_SIZE] = voltage;
+    s_voltage_idx++;
     return voltage;
 }
 
@@ -68,8 +84,8 @@ float measurements_read_current(void)
     adc_cali_raw_to_voltage(s_cali_handle, raw, &mv);
     float current = (mv - ACS758_ZERO_CURRENT_MV) / ACS758_MV_PER_AMP;
 
-    s_current_window[s_window_idx % RMS_WINDOW_SIZE] = current;
-    s_window_idx++;
+    s_current_window[s_current_idx % RMS_WINDOW_SIZE] = current;
+    s_current_idx++;
     return current;
 }
 

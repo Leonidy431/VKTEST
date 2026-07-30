@@ -86,7 +86,16 @@ class MainsSupply:
         return self.nominal_freq_hz + self.freq_drift_hz
 
     def is_within_safe_bounds(self) -> bool:
-        """99 факт #89-90: блокировка при U < 185В или f вне 45-65 Гц."""
-        v = self.nominal_voltage - self.sag_voltage
+        """
+        99 факт #89-90: блокировка при U < 185В или f вне 45-65 Гц.
+
+        Учитывает наихудший случай instantaneous_voltage(t): при синусоидальной
+        помехе noise_amplitude мгновенное напряжение кратковременно проседает
+        до (nominal - sag - noise_amplitude). Ранее проверялось только среднее
+        (nominal - sag) без учета шума, из-за чего сеть с большой амплитудой
+        помехи, кратковременно проваливающаяся ниже 185В, ошибочно считалась
+        безопасной.
+        """
+        worst_case_v = self.nominal_voltage - self.sag_voltage - self.noise_amplitude
         f = self.frequency()
-        return v >= 185.0 and 45.0 <= f <= 65.0
+        return worst_case_v >= 185.0 and 45.0 <= f <= 65.0
