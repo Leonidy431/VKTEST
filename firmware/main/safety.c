@@ -4,6 +4,7 @@
 void safety_limits_default(safety_limits_t *limits)
 {
     limits->min_input_voltage = 185.0f;
+    limits->max_current_a = 110.0f;
     limits->short_circuit_current_a = 120.0f;
     limits->min_freq_hz = 45.0f;
     limits->max_freq_hz = 65.0f;
@@ -46,6 +47,9 @@ safety_violation_t safety_check_during_weld(
     }
     if (current_a > limits->short_circuit_current_a) {
         return SAFETY_SHORT_CIRCUIT;
+    }
+    if (current_a > limits->max_current_a) {
+        return SAFETY_OVERCURRENT;
     }
     if (heatsink_temp_c > limits->critical_heatsink_temp_c) {
         return SAFETY_OVERHEAT_CRITICAL;

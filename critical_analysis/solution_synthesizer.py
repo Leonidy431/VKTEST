@@ -18,6 +18,7 @@ class SynthesisReport:
     physics_issues: List[str] = field(default_factory=list)
     compliance_issues: List[ComplianceIssue] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
+    has_warnings: bool = False
 
 
 class SolutionSynthesizer:
@@ -53,11 +54,20 @@ class SolutionSynthesizer:
         ]
 
         has_critical = any(e.severity == "CRITICAL" for e in critical_errors)
+        # WARNING-уровня находки (например MISSING_RESISTANCE_CROSS_CHECK,
+        # MISSING_LOW_VOLTAGE_LOCKOUT, MISSING_AMBIENT_COMPENSATION) ранее
+        # игнорировались этим вердиктом — архитектура без сверки сопротивления
+        # с штрих-кодом могла получить is_ready_for_production=True, хотя
+        # error_detector явно её отметил. Это была ложноотрицательная реакция
+        # самого модуля обнаружения искажений — исправлено требованием
+        # отсутствия WARNING наравне с CRITICAL.
+        has_warnings = any(e.severity == "WARNING" for e in critical_errors)
         is_compliant = self.standards_checker.is_fully_compliant(compliance_issues)
 
         return SynthesisReport(
-            is_ready_for_production=not has_critical and is_compliant,
+            is_ready_for_production=not has_critical and not has_warnings and is_compliant,
             critical_errors=critical_errors,
             compliance_issues=compliance_issues,
             recommendations=recommendations,
+            has_warnings=has_warnings,
         )

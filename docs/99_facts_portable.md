@@ -23,7 +23,7 @@
 | 15 | Фазовое управление симистором | `simulation/pid_simulator.py::angle_to_rms_voltage`, `firmware/main/pid_controller.c` |
 | 17 | Активное охлаждение по датчику T радиатора | `control/safety_validator.py::should_derate`, `firmware/main/safety.c::safety_should_derate` |
 | 19 | Zero-Cross Detector | `firmware/main/zero_crossing.c` |
-| 21 | Ток до 110А в сварочной цепи | `SafetyLimits.max_current_a` / `short_circuit_current_a` |
+| 21 | Ток до 110А в сварочной цепи (мягкий рабочий предел), аппаратная отсечка КЗ на 120А | `SafetyLimits.max_current_a` (`OVERCURRENT`, ранее не проверялось в коде — исправлено) / `short_circuit_current_a` (`SHORT_CIRCUIT`) |
 | 28-30 | Датчик Холла, 1кГц опрос, True RMS | `firmware/main/measurements.c` (RMS_WINDOW_SIZE, compute_rms) |
 | 34-36 | Тестовый импульс, сверка R с кодом (±10%) | `control/welder_controller.py::run_weld_cycle` (resistance_delta check), `critical_analysis/physics_validator.py::validate_resistance_match` |
 
@@ -58,11 +58,11 @@
 | # | Факт | Реализация | Тест |
 |---|---|---|---|
 | 86 | Open Circuit Fault | `control/safety_validator.py::check_during_weld`, `firmware/main/safety.c` | `tests/test_safety_validators.py::test_during_weld_detects_open_circuit`, `tests/test_welder_controller.py::test_open_circuit_during_heating_aborts` |
-| 87 | Short Circuit Fault (>110А) | `SafetyLimits.short_circuit_current_a` | `test_during_weld_detects_short_circuit` |
+| 87 | Overcurrent Fault (>110А, мягкий предел) / Short Circuit Fault (>120А, аппаратный предел) | `SafetyLimits.max_current_a` / `short_circuit_current_a` | `test_during_weld_detects_overcurrent` / `test_during_weld_detects_short_circuit` |
 | 89 | Low Input Voltage (<185В) блокирует старт | `SafetyValidator.check_pre_start` | `test_pre_start_fails_low_voltage` |
 | 90 | Частота вне 45-65Гц блокирует старт | `SafetyValidator.check_pre_start` | `test_pre_start_fails_bad_frequency` |
-| 91-92 | Traceability + SHA-256 подпись протокола | `protocol/traceability.py`, `protocol/session_logger.py` | `tests/test_traceability.py` (5 тестов) |
-| 93 | Остывание — обратный отсчет, не форсируется | `control/temperature_compensator.py::compensate_cooling_time` | — |
+| 91-92 | Traceability + HMAC-SHA256 подпись протокола (с секретным ключом устройства) | `protocol/traceability.py`, `protocol/session_logger.py` | `tests/test_traceability.py` (8 тестов) |
+| 93 | Остывание — обратный отсчет; следующая сварка блокируется, пока не истекло скомпенсированное время остывания | `control/temperature_compensator.py::compensate_cooling_time`, `control/welder_controller.py::run_weld_cycle` (`elapsed_since_last_weld_s` gate — ранее не было реального ожидания, исправлено) | `tests/test_welder_controller.py::test_premature_restart_blocked_during_cooling` |
 | 96 | Блокировка при T < -20°C | `SafetyLimits.min_operating_temp_c` | `test_pre_start_fails_too_cold` |
 | 98 | Лимиты по диаметру — "защита от дурака" | `critical_analysis/physics_validator.py::validate_universal_table_usage` (отвергает универсальные таблицы вместо жестких лимитов — альтернативный, более гибкий механизм защиты) | `test_physics_validator_rejects_universal_table` |
 

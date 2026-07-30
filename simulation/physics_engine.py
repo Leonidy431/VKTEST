@@ -25,6 +25,7 @@ class FittingSpec:
     nominal_voltage: float
     base_heating_time_s: float
     resistance_temp_coefficient: float = 0.00393  # медь/никель-хром, 1/°C
+    base_cooling_time_s: float = 1200.0  # 20 мин — типовое время остывания (99 факт #93)
 
 
 class JoulesLenzEngine:
@@ -48,19 +49,27 @@ class JoulesLenzEngine:
         return (voltage ** 2 / resistance) * dt
 
     def _integrate_nominal_energy(
-        self, fitting: FittingSpec, dt: float = 0.1, coil_temp_rise_rate_c_per_s: float = 4.0
+        self,
+        fitting: FittingSpec,
+        duration_s: float,
+        dt: float = 0.1,
+        coil_temp_rise_rate_c_per_s: float = 4.0,
     ) -> float:
         """
-        Энергия, реально доставляемая за base_heating_time_s при номинальном
-        напряжении с учетом роста сопротивления спирали R(T) при нагреве.
-        Используется как физически согласованная база для minimum_energy_for_weld:
-        сопротивление растет со временем (99 факт #3), поэтому расчет "в лоб"
-        по холодному R переоценивал бы доставляемую энергию.
+        Энергия, реально доставляемая за duration_s при номинальном напряжении
+        с учетом роста сопротивления спирали R(T) при нагреве. Используется
+        как физически согласованная база для minimum_energy_for_weld:
+        сопротивление растет со временем (99 факт #3) и насыщается на
+        MELT_TEMP_MAX_C, поэтому расчет "в лоб" по холодному R переоценивал
+        бы доставляемую энергию, а линейное масштабирование по времени
+        недооценивало бы влияние насыщения R(T).
         """
+        if dt <= 0:
+            raise ValueError("dt must be positive")
         t = 0.0
         energy = 0.0
         coil_temp = self.REFERENCE_TEMP_C
-        while t < fitting.base_heating_time_s:
+        while t < duration_s:
             resistance = self.resistance_at_temp(
                 fitting.resistance_cold_ohm, coil_temp, fitting.resistance_temp_coefficient
             )
@@ -69,26 +78,34 @@ class JoulesLenzEngine:
             t += dt
         return energy
 
-    def minimum_energy_for_weld(self, fitting: FittingSpec, ambient_temp_c: float) -> float:
+    def minimum_energy_for_weld(self, fitting: FittingSpec, heating_time_s: float) -> float:
         """
-        Минимальная энергия для полного расплава, скорректированная на
-        температуру окружающей среды: холодный воздух отбирает больше тепла.
+        Минимальная энергия для полного расплава — прямой интеграл по
+        фактическому времени нагрева (heating_time_s), уже скорректированному
+        на температуру окружающей среды в TemperatureCompensator.
+
+        Ранее ambient-компенсация энергии считалась отдельным линейным
+        коэффициентом, независимым от компенсации времени в
+        control/temperature_compensator.py. Из-за насыщения R(T) на
+        MELT_TEMP_MAX_C энергия НЕ растет линейно со временем нагрева, из-за
+        чего два независимых коэффициента расходились: физически корректная
+        сварка (100% номинального напряжения на протяжении всего
+        скомпенсированного времени) в диапазоне +0..+19°C ошибочно
+        классифицировалась как INCOMPLETE_WELD. Интеграция напрямую по
+        heating_time_s устраняет расхождение по построению — обе величины
+        теперь получены из одной и той же длительности.
         """
-        base_energy = self._integrate_nominal_energy(fitting)
-        # Компенсация: на каждый градус ниже 20°C требуется on 0.4% больше энергии
-        ambient_deficit = max(0.0, self.REFERENCE_TEMP_C - ambient_temp_c)
-        compensation_factor = 1.0 + ambient_deficit * 0.004
-        return base_energy * compensation_factor
+        return self._integrate_nominal_energy(fitting, heating_time_s)
 
     def evaluate_weld_state(
         self,
         energy_accumulated: float,
         fitting: FittingSpec,
-        ambient_temp_c: float,
+        heating_time_s: float,
         destruction_margin: float = 1.3,
     ) -> WeldState:
         """Определяет состояние полиэтилена: недогрев / успех / термодеструкция."""
-        min_energy = self.minimum_energy_for_weld(fitting, ambient_temp_c)
+        min_energy = self.minimum_energy_for_weld(fitting, heating_time_s)
         max_energy = min_energy * destruction_margin
 
         if energy_accumulated < min_energy:
@@ -101,7 +118,6 @@ class JoulesLenzEngine:
         self,
         fitting: FittingSpec,
         applied_voltage_fn,
-        ambient_temp_c: float,
         duration_s: float,
         dt: float = 0.1,
         coil_temp_rise_rate_c_per_s: float = 4.0,
@@ -111,7 +127,12 @@ class JoulesLenzEngine:
 
         applied_voltage_fn(t) -> float — функция, возвращающая напряжение на
         спирали в момент времени t (позволяет моделировать просадки сети/батареи).
+        duration_s — фактическое время нагрева, уже скорректированное на
+        температуру окружающей среды вызывающей стороной (см.
+        control.temperature_compensator.TemperatureCompensator), если требуется.
         """
+        if dt <= 0:
+            raise ValueError("dt must be positive")
         t = 0.0
         energy_accumulated = 0.0
         coil_temp = self.REFERENCE_TEMP_C
@@ -140,7 +161,7 @@ class JoulesLenzEngine:
             )
             t += dt
 
-        state = self.evaluate_weld_state(energy_accumulated, fitting, ambient_temp_c)
+        state = self.evaluate_weld_state(energy_accumulated, fitting, duration_s)
 
         return {
             "state": state,

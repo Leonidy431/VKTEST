@@ -9,7 +9,8 @@
 
 typedef struct {
     float min_input_voltage;       /* 185.0 V */
-    float short_circuit_current_a; /* 120.0 A */
+    float max_current_a;           /* 110.0 A - рабочий максимум (мягкий предел) */
+    float short_circuit_current_a; /* 120.0 A - аппаратный предел КЗ */
     float min_freq_hz;             /* 45.0 Hz */
     float max_freq_hz;             /* 65.0 Hz */
     float max_heatsink_temp_c;     /* 70.0 C  - начало derating */
@@ -26,6 +27,7 @@ typedef enum {
     SAFETY_BATTERY_LOW,
     SAFETY_OPEN_CIRCUIT,
     SAFETY_SHORT_CIRCUIT,
+    SAFETY_OVERCURRENT,
     SAFETY_OVERHEAT_CRITICAL,
 } safety_violation_t;
 
