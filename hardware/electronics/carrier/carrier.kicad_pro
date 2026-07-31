@@ -1,0 +1,7 @@
+{
+  "board": { "design_settings": {} },
+  "meta": { "filename": "carrier.kicad_pro", "version": 1 },
+  "schematic": { "legacy_lib_dir": "", "legacy_lib_list": [] },
+  "sheets": [ [ "abb9d882-704c-5f79-a320-c7d1cf8bd068", "" ] ],
+  "text_variables": {}
+}
