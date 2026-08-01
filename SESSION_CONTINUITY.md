@@ -464,6 +464,32 @@ VKTEST Repository Root/
 
 ---
 
-**Last Updated:** 2026-07-24  
-**Status:** ✅ IN PROGRESS - Evidence-Driven framework established, ready for implementation phase
+---
+
+## Session Update: 2026-08-01
+
+### Task #9: Git Operation Rules & Constraints (d274f33)
+- **File:** Updated `CLAUDE.md` with new section "Git Operations & Constraints (Operational Rule)"
+- **What:** Enforce operational discipline on git operations to prevent context thrashing and CI overload
+- **Key Rules Implemented:**
+  - **Maximum 2 git operations per day** - prevents rapid iteration from exhausting CI resources
+  - **Pre-Push Checklist (MANDATORY):**
+    - Run `pytest tests/ -v --cov=robotics` on dev server FIRST
+    - Verify 100% test pass rate required
+    - Check coverage targets (85%+ minimum, 99%+ critical modules)
+    - Fix ALL errors locally before pushing
+  - **Error Investigation Protocol:**
+    - Network errors → retry 4x with exponential backoff (2s, 4s, 8s, 16s)
+    - Merge conflicts → fetch, rebase locally, test, then push
+    - Auth errors → verify credentials, don't bypass with --no-verify
+    - Network policy → investigate proxy/firewall issues
+  - **Daily Operation Budget:** 2 slots per day
+    1. Development phase: local testing, code changes, commit
+    2. Validation phase: push to remote after pre-push checks pass
+- **Rationale:** Remote execution environment has limited CI resources (shared), session disk quota constraints, flaky network conditions require early error detection
+- **Testing:** 285/286 tests passing (1 meta-test fails due to subprocess environment, not code)
+- **Status:** ✓ Committed (d274f33)
+
+**Last Updated:** 2026-08-01  
+**Status:** ✅ IN PROGRESS - Git operation rules implemented, ready for next implementation phase
 
