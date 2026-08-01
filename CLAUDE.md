@@ -435,6 +435,37 @@ PREFLIGHT (33 checks) → DIVING (silent mode, local FSM)
 - Push with `-u` flag: `git push -u origin claude/phased-array-robotics-nhh6i2`
 - Create PR as draft after pushing (auto-checks CI)
 
+### Git Operations & Constraints (Operational Rule)
+
+**Maximum 2 git operations per day** to prevent context thrashing and CI server overload.
+
+**Pre-Push Checklist (MANDATORY):**
+1. **Run CI tests on dev server FIRST** before pushing:
+   ```bash
+   pytest tests/ -v --cov=robotics --cov-report=term-missing
+   ```
+2. **Verify all tests pass** (100% pass rate required)
+3. **Check coverage targets** (85%+ minimum, 99%+ for critical modules)
+4. **Fix ALL errors before pushing** — do not push with failing tests or coverage gaps
+5. **Investigate root causes** of any git-related errors (merge conflicts, network timeouts, auth failures) and resolve them locally first
+
+**Error Investigation Protocol:**
+- If `git push` fails with network error → retry up to 4 times with exponential backoff (2s, 4s, 8s, 16s)
+- If `git push` fails with merge conflict → fetch latest `origin/claude/phased-array-robotics-nhh6i2`, rebase locally, test, then push
+- If `git push` fails with auth error → verify credentials and SSH key, do not bypass with `--no-verify`
+- If `git fetch` fails → investigate network policy (proxy, firewall) using `/root/.ccr/ca-bundle.crt` and proxy status
+
+**Daily Operation Budget:**
+- **Operation 1:** Local testing, code changes, commit (development phase)
+- **Operation 2:** Push to remote branch after ALL pre-push checks pass (validation phase)
+- **Third operation (if needed):** Only for critical hotfixes after on-call review; requires explicit user approval
+
+**Why This Matters:**
+- Remote execution environment has limited CI resources (shared across users)
+- Session disk quota fills rapidly with repeated test runs + coverage reports
+- Flaky network conditions → early error detection prevents wasted bandwidth
+- Operational discipline → fewer rollbacks, cleaner commit history
+
 ### Configuration
 - `.env` file required:
   ```bash
