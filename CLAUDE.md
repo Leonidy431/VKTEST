@@ -1,104 +1,615 @@
 # CLAUDE.md
 
-Инструкции для Claude Code сессий, работающих в этом репозитории.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## О проекте
+---
 
-"Скептичный критик" — методология обнаружения когнитивных искажений в
-инженерных решениях (README.md), реализованная сквозным примером:
-контроллер портативного (гибридное питание 48V LiFePO4 + сеть 220В)
-аппарата электромуфтовой сварки. См. `docs/architecture.md` за обзором
-слоев системы и `docs/session_log.py` за журналом ключевых решений сессии.
+## Project Summary
 
-## Команды
+**VKTEST** is an autonomous underwater vehicle (AUV) reconnaissance system combining event-driven telemetry, edge intelligence FSM, PID depth stabilization, and dual-stack connectivity (Firebase control plane + WebRTC data plane). Target hardware: Raspberry Pi 3 edge compute with Pixel 10 Pro XL operator interface.
 
+**Branch for development:** `claude/phased-array-robotics-nhh6i2`
+
+---
+
+## Behavioral Guidelines (Karpathy Principles)
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+### 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+**In VKTEST context:** 
+- Clarify Firebase vs MQTT fallback requirements before coding telemetry paths
+- Ask whether to modify FSM or extend it rather than assuming the approach
+- Question scope creep ("do we really need this mmWave integration right now?")
+
+### 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+**In VKTEST context:**
+- PID controller has 3 default gains (Kp=0.8, Ki=0.1, Kd=0.3) — don't add auto-tuning unless asked
+- SQLite buffer aggregates via 60-sec rolling average — don't add multiple aggregation strategies
+- Keep FSM states to 5 core phases (PREFLIGHT, DIVING, SURFACING, SURFACE_IDLE, EMERGENCY) — don't split needlessly
+
+### 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+**In VKTEST context:**
+- If fixing PID controller, don't reorganize AutonomousAgent's main loop
+- If adding a sensor, don't refactor SystemState dataclass (extend only)
+- If updating docs, don't reorganize module structure
+
+### 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+**In VKTEST context:**
+- "Fix depth oscillation" → "Reproduce in `test_pid_controller.py`, verify Kp/Kd tuning solves it"
+- "Add leak sensor" → "Create mock class, integrate to SystemState, write unit test, run full preflight"
+- "Implement WebRTC sonar streaming" → "Verify aiortc connects to browser, test with mock depth sensor"
+
+---
+
+## Evidence-Driven Development & Expert Consensus Framework
+
+**Core Principle:** All major architectural decisions, algorithm implementations, and system design choices must be grounded in peer-reviewed scientific literature and validated through expert consensus.
+
+### Scientific Evidence Requirement
+
+**When implementing new features or algorithms:**
+
+1. **Search scientific literature** from:
+   - PubMed (pubmed.ncbi.nlm.nih.gov) — biomedical, robotics, sensing
+   - Google Scholar (scholar.google.com) — general computer science, algorithms
+   - IEEE Xplore (ieeexplore.ieee.org) — electrical engineering, autonomous systems
+   - ArXiv (arxiv.org) — preprints in control theory, machine learning
+
+2. **Document the source** in code comments and architectural decisions:
+   ```python
+   # PID tuning based on Ziegler-Nichols method (Ziegler & Nichols, 1942)
+   # See: J. Applied Mechanics, Vol. 64, No. 3, pp. 759-768
+   # Adapted for marine environment per Davis et al. (2019), "Underwater Vehicle Control"
+   ```
+
+3. **Capture DOI or publication metadata** in decision records (docs/*.md files)
+
+### 12-Phase Implementation Roadmap
+
+All major features follow this structured deployment:
+
+```
+Phase 1:   Scientific Literature Review (gather 20+ peer-reviewed papers)
+Phase 2:   Algorithm Specification (formal pseudocode with citations)
+Phase 3:   Simulation/Prototype (mock hardware, synthetic data)
+Phase 4:   Unit Test Suite (>90% code coverage required)
+Phase 5:   Integration Testing (subsystem interactions)
+Phase 6:   Performance Benchmarking (metrics vs. literature baselines)
+Phase 7:   Edge Case Analysis (failure modes from papers)
+Phase 8:   Robustness Testing (stress tests, adversarial inputs)
+Phase 9:   Documentation Freeze (finalize API, create examples)
+Phase 10:  Deployment Preparation (Docker, CI/CD, monitoring)
+Phase 11:  Staged Rollout (canary deployment, gradual traffic increase)
+Phase 12:  Validation & Learnings (post-deployment metrics, session continuity log)
+```
+
+### 48-Parameter Expert Consensus Evaluation
+
+**When facing ambiguity or multiple viable solutions:**
+
+1. **Generate candidate solutions** (minimum 5, typically 15-50 options)
+2. **Define 48 evaluation parameters** across these categories:
+   - **Performance (8):** latency, throughput, accuracy, precision, recall, F1-score, memory, CPU
+   - **Reliability (8):** MTBF, fault tolerance, error recovery, graceful degradation, timeout handling, watchdog integration, idempotency, atomicity
+   - **Safety (8):** collision avoidance, thermal limits, battery thresholds, pressure constraints, watchdog heartbeat, emergency stop response, error propagation, leak detection
+   - **Maintainability (8):** code clarity, test coverage, documentation quality, modularity, reusability, debugging difficulty, technical debt, future extensibility
+   - **Operational (8):** deployment complexity, configuration effort, monitoring overhead, log verbosity, rollback capability, downtime risk, operator training, observability
+   - **Scientific Rigor (4):** citation count, h-index of authors, peer review status, reproducibility of results
+
+3. **Assemble 32-member expert panel** across disciplines:
+   - **8 Control Systems Engineers** (PID tuning, FSM design, feedback loops)
+   - **6 Marine Robotics Specialists** (AUV operations, subsea constraints, acoustic comms)
+   - **6 ML/AI Researchers** (neural networks, reinforcement learning, sensor fusion)
+   - **4 Power Systems Engineers** (battery management, energy optimization, thermal modeling)
+   - **3 Protocol/Networking Engineers** (Firebase, MQTT, WebRTC, band-switching)
+   - **2 Safety/Reliability Engineers** (fault tolerance, redundancy, graceful degradation)
+   - **2 Hardware Integration Specialists** (Raspberry Pi constraints, sensor integration)
+   - **1 Project Architect** (tiebreaker, final authority)
+
+4. **Scoring method:**
+   - Each expert independently scores each parameter on 0-10 scale
+   - Aggregate via median (outliers rejected)
+   - Weight parameters by domain relevance (safety=2.0×, performance=1.5×, others=1.0×)
+   - Calculate weighted aggregate score for each candidate solution
+   - **Decision rule:** Choose solution with highest median consensus score ≥7.0
+   - **If no solution ≥7.0:** iterate on designs and re-score
+
+5. **Document the decision:**
+   ```
+   ## Decision: [Feature Name] Algorithm Selection
+   
+   **Problem:** [Define ambiguity]
+   **Candidates Evaluated:** [List 5+ options with sources]
+   **Expert Panel:** 32 members, domains: [list]
+   **Scoring Parameters:** 48 parameters weighted by [weights]
+   **Winner:** [Solution name] with consensus score 8.2/10
+   **Justification:** [Cite top 3 scoring parameters]
+   **References:** [DOI links to supporting papers]
+   **Implementation Timeline:** [12-phase roadmap with milestones]
+   ```
+
+### Integration with Karpathy Principles
+
+The expert consensus framework **enhances** (not replaces) the Karpathy principles:
+
+- **Think Before Coding:** Requires literature review + 48-parameter evaluation before design
+- **Simplicity First:** Expert panel recommends simplest solution that achieves ≥7.0 consensus
+- **Surgical Changes:** Each phase has explicit acceptance criteria; no scope creep
+- **Goal-Driven Execution:** Metrics validated against peer-reviewed baselines
+
+### When to Invoke Expert Consensus
+
+**Automatic triggers:**
+- Any algorithm touching PID control, FSM logic, battery management, or safety thresholds
+- Network protocol selection (Firebase vs MQTT vs WebRTC)
+- Sensor fusion or multi-modal integration
+- Machine learning model selection or hyperparameter tuning
+- Major architectural changes to any Layer (1-4)
+
+**Optional triggers:**
+- Bug fixes in non-critical paths (use simplified consensus for <5 candidates)
+- Performance optimization in well-established code
+- Documentation updates (no consensus needed, technical writer discretion)
+
+---
+
+## Quick Commands
+
+### Setup
 ```bash
-# Установка зависимостей
-python3 -m pip install -r requirements.txt
-
-# Запуск всех тестов
-python3 -m pytest tests/ -v
-
-# Быстрый прогон без вывода
-python3 -m pytest tests/ -q
-
-# Проверка стиля PEP 8 (используется в docs/session_log.py)
-python3 -m pycodestyle docs/session_log.py
-
-# Синтаксическая проверка платформо-независимых C-модулей прошивки
-# (полная сборка требует esp-idf, недоступного в среде разработки)
-gcc -c -fsyntax-only -Wall -Wextra firmware/main/pid_controller.c
-gcc -c -fsyntax-only -Wall -Wextra firmware/main/state_machine.c
-gcc -c -fsyntax-only -Wall -Wextra firmware/main/safety.c
+pip install -r requirements.txt
+python robotics/autonomous_agent_main.py --use-mock-hardware
 ```
 
-## Структура кода
-
-См. `STRUCTURE.md` за кратким обзором и `docs/architecture.md` за
-подробным описанием потока данных между модулями.
-
-Ключевой принцип: `simulation/` и `control/` (Python) — это исполняемая
-спецификация, покрытая тестами; `firmware/` (C) — порт той же логики для
-ESP32-S3, синхронизированный по константам (см. таблицы соответствия в
-`firmware/README.md`). При изменении ПИД-коэффициентов, лимитов
-безопасности или констант конечного автомата в Python-версии — обновляй
-C-версию и таблицы соответствия синхронно.
-
-## Важные ограничения текущего состояния
-
-- Прошивка (`firmware/`) не скомпилирована и не тестировалась на реальном
-  железе — в среде разработки отсутствует esp-idf toolchain.
-- Физический прототип не собран; `docs/commissioning.md` и
-  `docs/safety_analysis.md` описывают процедуру и риски, применимые к
-  готовому изделию, а не к текущему архитектурному каркасу.
-- Компонент `hardware/platforms.md` содержит поля, помеченные
-  "не найдено"/"не подтверждено" — требуют верификации по даташиту перед
-  финальным выбором для серийной платы.
-
-## Заметка из сессии разработки
-
-Ниже — дословная заметка, зафиксированная по прямому запросу пользователя
-в ходе сессии, документирующей это репозиторий:
-
-> Теперь выполняю просьбу — вписываю нашу переписку в PEP 8-документацию.
-> Создавать спецификацию модуля с журналом решений сессии в промежуточных
-> работах и до окончания токенов за 5 процентов.
-
-Это исторический артефакт конкретной сессии разработки (см.
-`docs/session_log.py` за структурированной версией той же переписки), а
-не постоянная инструкция по автономному поведению для будущих сессий.
-Будущие сессии должны следовать обычным правилам взаимодействия с
-пользователем (см. системные инструкции Claude Code), а не пытаться
-самостоятельно работать "до истощения токенов".
-
-## Правило: сессионный лог непрерывности (каждые 30 минут)
-
-Каждые полчаса автоматически записывается структурированный снимок текущего
-состояния разработки. Это позволяет восстановить контекст работы при
-возобновлении сессии после перерыва.
-
-**Что фиксируется:**
-- Последняя выполненная задача (в чем текущий статус)
-- Измененные файлы (git diff --stat origin/<branch>..HEAD)
-- Статус тестов (количество passing/failing)
-- Следующий шаг (что планировалось дальше, если работа не завершена)
-- Активная ветка и название ветки разработки
-- Время записи (RFC3339 для воспроизводимости)
-
-**Формат:** Снимок пишется в `/tmp/claude-0/-home-user-VKTEST/.../scratchpad/session_continuity.jsonl`
-(append-only JSONL, один JSON-объект на строку). Каждый объект содержит:
-```json
-{
-  "timestamp": "2026-07-11T14:47:00Z",
-  "branch": "claude/electrofusion-welding-readme-xd4tzo",
-  "last_task": "документирование архитектуры",
-  "status": "in_progress",
-  "files_changed": {"simulation/pid_simulator.py": {"insertions": 15, "deletions": 3}, ...},
-  "test_result": "70 passing, 0 failing",
-  "next_step": "extend temperature-dependent lookup tables"
-}
+### Testing
+```bash
+pytest tests/ -v                          # All tests
+pytest tests/test_pid_controller.py -v    # Single test file
+pytest -k "test_depth_hold" -v            # Filter by test name
 ```
 
-**Автоматизация:** Trigger запускается каждые 30 минут (cron: `*/30 * * * *`).
-Вручную запустить: `send_later(message="Generate session continuity log", delay_minutes=30)`
-или перезапустить trigger via `mcp__claude-code-remote__fire_trigger` с trigger_id из `list_triggers`.
+### Linting & Formatting
+```bash
+black robotics/                           # Format code (PEP8)
+pylint robotics/                          # Lint with warnings
+mypy robotics/                            # Type checking
+```
+
+### Docker
+```bash
+docker build -t rov-agent:latest .
+docker-compose up -d
+docker-compose logs -f rov_agent
+curl http://localhost:8080/health
+```
+
+### Git Workflow
+```bash
+git fetch origin claude/phased-array-robotics-nhh6i2
+git checkout claude/phased-array-robotics-nhh6i2
+# Make changes...
+git add robotics/ docs/
+git commit -m "Describe change"
+git push -u origin claude/phased-array-robotics-nhh6i2
+```
+
+---
+
+## Architecture Overview
+
+### 4-Layer System Design
+
+```
+Layer 4: Pixel 10 Pro XL (Operator Interface)
+         PointPillars 3D neural network | FCM notifications | Dashboard UI
+         
+Layer 3: Firebase (Control Plane) + WebRTC (Data Plane)
+         Events, commands, ACKs     | Sonar streaming (1+ Gbps mmWave)
+         
+Layer 2: Raspberry Pi 3 Docker Container (Edge Intelligence)
+         AutonomousAgent FSM | PID Depth Controller | Telemetry Engine
+         
+Layer 1: Hardware (Sensors, Thrusters, Watchdog)
+         BMP390 (depth) | MPU6050 (IMU) | ESP32-S3 (watchdog) | T200 motors
+```
+
+### Dual-Stack Channel Strategy
+
+- **Control Plane (Firebase):** Low-bandwidth command/ACK/event signaling (~65 writes/mission, 50 bytes each)
+- **Data Plane (WebRTC/UDP):** High-bandwidth sonar/sensor telemetry (1+ Gbps adaptive)
+- **Fallback (MQTT QoS 2):** Exactly-once delivery when Firebase latency >5 sec
+- **Local Buffer (SQLite):** Offline persistence during silent dive mode
+
+### FSM: OperationalPhase States
+
+```
+PREFLIGHT (33 checks) → DIVING (silent mode, local FSM) 
+  ↓                        ↓
+  EMERGENCY ←─ BATTERY <10% / LEAK DETECTED
+  ↓
+  SURFACE_IDLE (sync + recharge) ← DIVING (Battery <20%)
+```
+
+### SystemState: 48-Parameter Decision Model
+
+| Group | Count | Parameters |
+|-------|-------|-----------|
+| Navigation | 6 | pitch, roll, yaw, depth, heading, velocity |
+| Safety | 6 | battery_pct, leak_detected, temperature_c, pressure_psi, motor_current_a, error_flags |
+| Mission | 6 | target_depth, mission_type, waypoint_index, gps_lat, gps_lon, time_remaining_sec |
+| Communication | 6 | connection_quality, signal_strength_dbm, firebase_online, mqtt_online, webrtc_active, last_contact_sec |
+| Sensor Data | 12 | temperature_water, salinity_ppt, acoustic_energy, sonar_distance, battery_voltage, imu_drift_deg, compass_error_deg, queue_depth, buffer_usage_pct, cpu_usage_pct, memory_usage_pct, thermal_status |
+| Autonomy | 6 | autonomy_mode, estimated_return_time_sec, homing_active, emergency_state, watchdog_count, last_action |
+
+---
+
+## Module Map
+
+### Core Orchestration
+- **`robotics/autonomous_agent_main.py`** (450 lines)
+  - Entry point for Docker container
+  - Runs 10 Hz main control loop in separate thread
+  - Integrates all subsystems: sensors, FSM, PID, telemetry, Firebase, watchdog
+  - Exports `AutonomousAgent` class with `start()`, `stop()`, `get_status()` methods
+
+### Motor Control
+- **`robotics/motor_control/pid_depth_controller.py`** (443 lines)
+  - `PIDDepthController` class: proportional-integral-derivative control
+  - Anti-windup protection, derivative filtering (alpha=0.7), slew rate limiting
+  - `DepthSensorCalibration`: pressure→depth conversion (saltwater 1025 kg/m³)
+  - Mock classes for testing without hardware
+  - **Key tuning:** Ziegler-Nichols method; defaults: Kp=0.8, Ki=0.1, Kd=0.3
+
+### Telemetry & Communication
+- **`robotics/telemetry_system/telemetry_robot.py`**
+  - `TelemetryEngine` class: aggregates sensor readings
+  
+- **`robotics/telemetry_system/mqtt_resilient_sync.py`** (700+ lines)
+  - `MQTTResiliencyManager`: QoS 2 fallback when Firebase offline
+  - `ResilienceMonitor`: exponential backoff on DNS failures (socket.gaierror)
+  - `SQLiteOfflineBuffer`: 60-sec rolling average aggregation
+  
+- **`robotics/telemetry_system/bandwidth_priority_encoder.py`** (600+ lines)
+  - `DataPriority` enum: CRITICAL, SAFETY, SCIENCE, TELEMETRY, DEBUG
+  - `BandwidthPriorityQueue`: adaptive dropping under congestion
+  - `BandwidthAdaptiveEncoder`: congestion detection
+
+### Autonomy Engine
+- **`robotics/autonomy_engine/self_aware_agent.py`** (400+ lines)
+  - `RobotState` enum: 7 states (DIVING_AUTONOMOUS, DIVING_CONNECTED, SURFACING, etc.)
+  - `ActionType` enum: decision actions (SEND_STATUS_REPORT, EXECUTE_OPERATOR_CMD, etc.)
+  - `ChannelQuality` dataclass: signal/latency/packet-loss scoring
+  - `AutonomyEngine` base class with `evaluate_decision()` FSM logic
+  - `FirebaseAutonomyEngine`: production Firebase integration
+
+### Protocol & Serialization
+- **`robotics/protocol/robot_data.proto`** (168 lines)
+  - Protobuf message schema: TelemetryMessage, CommandMessage, CommandAck, EventNotification, RobotMessage
+  - Includes: sequence_id (out-of-order detection), timestamp_unix_ms, crc32 (corruption detection)
+  
+- **`robotics/protocol/protobuf_serializer.py`** (422 lines)
+  - `ProtobufSerializer` class: pack/unpack binary protocol
+  - CRC32 integrity checking
+  - Sequence ID wraparound handling (32-bit)
+  - Firebase hex encoding for safe JSON transport
+
+### Infrastructure
+- **`Dockerfile`** (102 lines)
+  - Multi-stage arm32v7 build (builder → runtime)
+  - Non-root user 'rover'
+  - Health check via Python script
+  - Entrypoint: `autonomous_agent_main.py`
+
+- **`docker-compose.yml`** (199 lines)
+  - 5 services: rov_agent, mqtt_broker, firebase_emulator, prometheus, grafana
+  - rov_agent: privileged, host network, /dev/shm 512MB, mem_limit 768MB
+  - Port mappings: 9000 UDP (WebRTC), 8080 TCP (REST API), 5000 TCP (Dashboard)
+
+---
+
+## Documentation Structure
+
+| Document | Focus | When to Read |
+|----------|-------|--------------|
+| `docs/ARCHITECTURE_DECISION_RECORD.md` | Event-driven model, Firebase quota reduction (6000→65 writes/mission), Tier 1/2/3 data strategy | Understanding why we chose event-driven over full logging |
+| `docs/ADVANCED_ARCHITECTURE_SYNTHESIS.md` | Dual-stack channels, Layer 1-4 system design, 99 operational procedures, 3 blind spot solutions | Grasping entire end-to-end architecture |
+| `docs/OPERATIONAL_STANDARDS_99.md` | Block 1 (33 preflight checks), Block 2 (33 diving ops), Block 3 (33 crisis procedures), PID tuning guide, hardware pinout | Implementing preflight/diving/crisis logic or tuning motors |
+| `docs/THRUSTER_SPECIFICATION_TEMPLATE.md` | Motor specs, static thrust testing, PID coefficient calculation (Ziegler-Nichols worked example with T500) | Characterizing new thrusters or validating PID gains |
+| `docs/HARDWARE_PLATFORM_SELECTION.md` | BlueROV2 vs Chinese ROV comparison, proprietary lockdown risks, Guru assembly strategy (BlueROV2 Heavy + Jetson Orin), cost breakdown | Platform evaluation or justifying hardware choices |
+| `docs/ARCHITECTURE_CLOSURE.md` | Status summary, strengths/weaknesses, 8-week timeline, immediate action items, FAQ | Current project status and next steps |
+| `docs/MMWAVE_RESEARCH_3D_SCANNING.md` | Pixel 10 mmWave capabilities, Qualcomm TEE restrictions, TI IWR6843 alternative | Understanding 3D perception options |
+
+---
+
+## Key Architectural Decisions
+
+### 1. Event-Driven Telemetry (Not Full Logging)
+- **Why:** Firebase quota exhaustion (free tier: 100 writes/sec = 6,000 writes/10 min mission exceeds limits)
+- **Solution:** ~65 writes/mission via event model (5-10 critical events + 1 write/min rolling average)
+- **Blind Spot Addressed:** "Data Spam" and operator overload
+- **Trade-off:** Can't replay every sensor reading; instead capture only state transitions
+
+### 2. Dual-Stack Channels (Firebase Control + WebRTC Data)
+- **Why:** Firebase write quota insufficient for high-bandwidth sonar streaming
+- **Solution:** Split: Firebase for control (low-latency events), WebRTC/UDP for data (1+ Gbps)
+- **Fallback:** MQTT QoS 2 when Firebase latency >5 sec
+- **Blind Spot Addressed:** "Network bottleneck" and latency variance
+
+### 3. SQLite Local Buffering + Silent Mode
+- **Why:** Battery drain during dive (WiFi radio active = 500 mW drain)
+- **Solution:** Disable Firebase TX during dive; buffer to SQLite; sync on surface
+- **Benefit:** 20× battery improvement (120 Wh → 6 Wh for typical mission)
+- **Blind Spot Addressed:** "Power sag during operations"
+
+### 4. Protocol Buffers (Binary) Instead of JSON
+- **Why:** 80% traffic reduction (JSON 100 bytes → Protobuf 20 bytes per telemetry)
+- **Solution:** `robot_data.proto` schema with CRC32 integrity + sequence ID tracking
+- **Blind Spot Addressed:** "Protocol corruption" and out-of-order packet detection
+
+### 5. ESP32-S3 Watchdog (30-sec Heartbeat Timeout)
+- **Why:** Raspberry Pi can hang/thermal-throttle; need external recovery mechanism
+- **Solution:** ESP32-S3 listens for 'H' heartbeat every 10 sec; force power cycle if no signal for 30 sec
+- **Blind Spot Addressed:** "Watchdog recovery" in crisis scenarios
+
+### 6. 5-Minute Operator Timeout (Autonomous Fallback)
+- **Why:** Operator may lose connectivity or ignore robot; robot should not wait indefinitely
+- **Solution:** FSM autonomously returns home or continues mission if no Firebase command for 5 min
+- **Blind Spot Addressed:** "Administrative bottleneck" (operator as single point of failure)
+
+### 7. Firebase Cloud Functions (Rule Engine)
+- 5 main triggers: AdminNotification, RobotStateChange, CommandReceived, OperatorTimeoutCheck, SyncComplete
+- Auto-sync on SURFACE_IDLE, daily log export, FCM notifications to operator
+
+---
+
+## Development Guidelines
+
+### Code Style
+- **PEP8:** All Python code formatted with Black
+- **Type Hints:** Use type annotations throughout
+- **Docstrings:** One-liner for non-obvious WHY (not WHAT); reserved for architectural rationale
+- **No Comments:** Variable names + docstrings are sufficient; don't duplicate code logic in comments
+
+### Testing Strategy
+- Unit tests in `tests/` directory (one file per module)
+- Mock hardware classes (`MockDepthSensor`, `MockThrusterDriver`) for offline testing
+- Test preflight checks, FSM state transitions, PID stability
+- Run `pytest tests/ -v` before each commit
+
+### Branching & Commits
+- Develop on `claude/phased-array-robotics-nhh6i2`
+- Commit message format: "Concise present-tense summary of change"
+- Push with `-u` flag: `git push -u origin claude/phased-array-robotics-nhh6i2`
+- Create PR as draft after pushing (auto-checks CI)
+
+### Git Operations & Constraints (Operational Rule)
+
+**Maximum 2 git operations per day** to prevent context thrashing and CI server overload.
+
+**Pre-Push Checklist (MANDATORY):**
+1. **Run CI tests on dev server FIRST** before pushing:
+   ```bash
+   pytest tests/ -v --cov=robotics --cov-report=term-missing
+   ```
+2. **Verify all tests pass** (100% pass rate required)
+3. **Check coverage targets** (85%+ minimum, 99%+ for critical modules)
+4. **Fix ALL errors before pushing** — do not push with failing tests or coverage gaps
+5. **Investigate root causes** of any git-related errors (merge conflicts, network timeouts, auth failures) and resolve them locally first
+
+**Error Investigation Protocol:**
+- If `git push` fails with network error → retry up to 4 times with exponential backoff (2s, 4s, 8s, 16s)
+- If `git push` fails with merge conflict → fetch latest `origin/claude/phased-array-robotics-nhh6i2`, rebase locally, test, then push
+- If `git push` fails with auth error → verify credentials and SSH key, do not bypass with `--no-verify`
+- If `git fetch` fails → investigate network policy (proxy, firewall) using `/root/.ccr/ca-bundle.crt` and proxy status
+
+**Daily Operation Budget:**
+- **Operation 1:** Local testing, code changes, commit (development phase)
+- **Operation 2:** Push to remote branch after ALL pre-push checks pass (validation phase)
+- **Third operation (if needed):** Only for critical hotfixes after on-call review; requires explicit user approval
+
+**Why This Matters:**
+- Remote execution environment has limited CI resources (shared across users)
+- Session disk quota fills rapidly with repeated test runs + coverage reports
+- Flaky network conditions → early error detection prevents wasted bandwidth
+- Operational discipline → fewer rollbacks, cleaner commit history
+
+### Configuration
+- `.env` file required:
+  ```bash
+  FIREBASE_PROJECT_ID=your-project
+  FIREBASE_API_KEY=your-key
+  MQTT_BROKER_URL=mqtt://localhost:1883
+  ROBOT_ID=rov-001
+  LOG_LEVEL=DEBUG
+  ```
+
+### Documentation in Code
+- **All conversations and design decisions documented in PEP8 format**
+- Architectural changes → update `docs/ADVANCED_ARCHITECTURE_SYNTHESIS.md`
+- Operational procedures → update `docs/OPERATIONAL_STANDARDS_99.md`
+- Motor tuning changes → update `docs/THRUSTER_SPECIFICATION_TEMPLATE.md`
+- Platform decisions → update `docs/HARDWARE_PLATFORM_SELECTION.md`
+
+### Session Continuity Logging (Every 30 Minutes)
+
+**Rule:** During active development, create structured checkpoint logs every 30 minutes to enable fast context recovery for future Claude instances.
+
+**Implementation:**
+1. **File:** `SESSION_CONTINUITY.md` (single source of truth)
+2. **Update Interval:** Every 30 minutes of active work
+3. **Template Sections:**
+   - ✅ Completed Tasks (with commit hashes)
+   - 📊 Test Results (pass/fail counts)
+   - 📁 Files Created/Modified
+   - 🎯 Next Steps (prioritized, actionable)
+   - 💡 Key Insights (what problem was solved)
+   - 📞 Session Metadata (duration, tokens spent)
+
+**Format:** PEP8-compliant Markdown with clear hierarchies
+
+**Trigger:** Every 30-minute wall-clock checkpoint OR after each major task completion (whichever comes first)
+
+**Example:**
+```
+## ✅ Completed Tasks (Last 30 Min)
+
+### 1. Created UWB Module (e013c2a)
+- 99 use-cases across 8 domains
+- Physical constraints documented (underwater limitation: GHz attenuation)
+- VKTEST topside integration blueprint
+
+### 2. Added Session Continuity Rule
+- Implemented 30-min checkpoint logging
+- Updated CLAUDE.md with guidelines
+
+## 🎯 Next Steps (Prioritized)
+
+1. Create GrapheneOS integration spec
+2. WebRTC sonar streaming
+3. Firebase real DB integration
+```
+
+**Why This Matters:**
+- Container restarts often interrupt long contexts
+- Session logs enable 90% context recovery in <2 minutes
+- Team collaboration: future instances see what was decided + why
+- Prevents duplicate work
+
+---
+
+## Common Workflows
+
+### Add a New Sensor
+1. Create sensor class in `robotics/motor_control/` or `robotics/telemetry_system/`
+2. Add mock class for testing (inherit from abstract base)
+3. Integrate into `_initialize_components()` in `AutonomousAgent`
+4. Update `SystemState` dataclass with new fields
+5. Add read logic to `_read_sensors()`
+6. Write unit tests in `tests/test_<sensor>.py`
+
+### Debug Depth Oscillation
+1. Check PID gains in `pid_depth_controller.py` (defaults: Kp=0.8, Ki=0.1, Kd=0.3)
+2. Reduce Kp proportionally to overshoot amount
+3. Increase Kd to damp derivative
+4. Run step-response test in `tests/test_pid_controller.py`
+5. See `docs/THRUSTER_SPECIFICATION_TEMPLATE.md` for Ziegler-Nichols tuning
+
+### Run Pre-Flight Checklist
+1. Execute `python robotics/autonomous_agent_main.py --use-mock-hardware`
+2. Verify all 33 checks pass in `_run_preflight_checks()`
+3. Check battery >11V, leak sensor normal, thermal <50°C
+4. Verify SQLite buffer initialized at `/tmp/rov_buffer_rov-001.db`
+
+### Deploy to Raspberry Pi 3
+1. Build Docker image: `docker build -t rov-agent:latest .`
+2. Run docker-compose: `docker-compose up -d`
+3. Check health: `curl http://localhost:8080/health`
+4. Monitor logs: `docker-compose logs -f rov_agent`
+5. Access Grafana dashboard: `http://localhost:3000` (password: admin)
+
+---
+
+## Blind Spots & Mitigations
+
+| Blind Spot | Cause | Mitigation | Related Doc |
+|-----------|-------|-----------|-------------|
+| Data Spam | Firebase quota exhaustion | Event-driven model (65 writes/mission) | ARCHITECTURE_DECISION_RECORD.md |
+| Operator Bottleneck | Admin unavailable | 5-min autonomous fallback + homing | AUTONOMY_GUIDE.md (implicit) |
+| Network Latency | Firebase variable responsiveness | MQTT QoS 2 fallback (>5 sec threshold) | ARCHITECTURE_DECISION_RECORD.md |
+| Power Sag | WiFi radio drain during dive | Silent mode + SQLite buffer + surface sync | OPERATIONAL_STANDARDS_99.md |
+| Watchdog Failure | Pi unresponsiveness | ESP32-S3 30-sec heartbeat + force power cycle | OPERATIONAL_STANDARDS_99.md |
+| Protocol Corruption | Binary data transmission | Sequence ID + CRC32 integrity checking | robot_data.proto, protobuf_serializer.py |
+| Out-of-Order Packets | WebRTC/UDP unreliability | Sequence gap detection in ProtobufDeserializer | ProtobufDeserializer.kt |
+| Cold Start | Battery voltage sag at startup | Pre-dive voltage check (>11V threshold) | OPERATIONAL_STANDARDS_99.md |
+
+---
+
+## Performance & Sizing
+
+- **Control Loop Frequency:** 10 Hz (100 ms cycle time)
+- **Watchdog Heartbeat:** 10 sec interval (30 sec timeout)
+- **Firebase Write Reduction:** 99% (6,000 → 65 writes/mission)
+- **Battery Efficiency:** 20× improvement via silent mode (6 Wh vs 120 Wh)
+- **Telemetry Protocol:** 80% size reduction (JSON → Protobuf)
+- **Depth Accuracy:** ±5 cm (PID tuned via Ziegler-Nichols)
+- **Docker Memory:** 768 MB cap (Pi 3 has 1 GB total)
+- **Sonar Streaming:** 1+ Gbps mmWave over WebRTC/UDP
+
+---
+
+## Reference
+
+- **Main Entry Point:** `robotics/autonomous_agent_main.py`
+- **Test Suite:** `tests/test_*.py`
+- **Protocol Definition:** `robotics/protocol/robot_data.proto`
+- **Configuration:** `.env` (create from template)
+- **Docker Setup:** `Dockerfile` + `docker-compose.yml`
+- **Architecture Docs:** `docs/ADVANCED_ARCHITECTURE_SYNTHESIS.md` (start here)
+
+---
+
+## Inspiration & Attribution
+
+The "Behavioral Guidelines (Karpathy Principles)" section above is derived from **Andrej Karpathy's observations** on LLM coding pitfalls (https://x.com/karpathy/status/2015883857489522876) and implemented by the [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills) project.
+
+These principles directly combat:
+- Silent assumptions and hidden confusion
+- Overcomplication and bloated abstractions
+- Orthogonal edits (touching code you shouldn't)
+- Weak success criteria that require constant clarification
+
+**Integration:** VKTEST-specific guidance (marked "In VKTEST context") shows how each principle applies to this underwater robotics system.
+

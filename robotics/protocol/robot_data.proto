@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package robotics.protocol;
+
+option go_package = "github.com/leonidy431/vktest/robotics/protocol";
+option java_multiple_files = true;
+option java_package = "com.leonidy431.vktest.robotics.protocol";
+
+/**
+ * Binary Telemetry Protocol using Protocol Buffers
+ *
+ * Design Goals:
+ * 1. 80% reduction in message size vs JSON
+ * 2. Type-safe serialization (no corruption during Firebase transit)
+ * 3. Sequence-ordered delivery (detect out-of-order packets)
+ * 4. Acknowledgment protocol (command delivery guarantee)
+ * 5. CRC32 integrity checking
+ *
+ * Blind Spots Addressed:
+ * - Queue synchronization (packets arrive out of order) → Sequence ID
+ * - ACK delay (command may not reach robot) → ACK message schema
+ * - Checksum/integrity (binary data corruption) → CRC32 field
+ */
+
+// ============ Telemetry Message (Robot → Operator) ============
+
+message GpsCoordinates {
+  double latitude = 1;
+  double longitude = 2;
+  int32 accuracy_meters = 3;
+}
+
+message SensorData {
+  float depth_m = 1;
+  float temperature_c = 2;
+  float salinity_ppt = 3;
+  int32 battery_pct = 4;
+  int32 signal_quality_pct = 5;
+  int32 heading_degrees = 6;
+  float velocity_ms = 7;
+}
+
+message TelemetryMessage {
+  // Header
+  uint32 sequence_id = 1;           // Detect out-of-order packets
+  int64 timestamp_unix_ms = 2;      // Milliseconds since epoch
+  string robot_id = 3;              // Device identifier
+  string message_type = 4;          // "TELEMETRY", "STATE_CHANGE", "ALARM"
+
+  // Payload
+  GpsCoordinates gps = 5;
+  SensorData sensors = 6;
+
+  // State tracking
+  string current_state = 7;         // "DIVING_CONNECTED", "SURFACING", etc
+  int32 queue_depth = 8;            // Unsynced records in local buffer
+
+  // Integrity
+  uint32 crc32 = 9;                 // CRC32 checksum of fields 1-8
+}
+
+// ============ Command Message (Operator → Robot) ============
+
+message CommandPayload {
+  string command_type = 1;          // "DIVE_TO_DEPTH", "RETURN_HOME", "SCAN_AREA"
+  map<string, string> parameters = 2;  // command-specific params
+  int32 priority = 3;               // 1=high, 5=low
+  int32 timeout_sec = 4;            // How long robot waits before autonomous fallback
+}
+
+message CommandMessage {
+  // Header
+  uint32 command_id = 1;            // Unique command identifier
+  int64 timestamp_unix_ms = 2;      // When operator issued command
+  string robot_id = 3;              // Target robot
+
+  // Payload
+  CommandPayload payload = 4;
+
+  // Integrity
+  uint32 crc32 = 5;
+}
+
+// ============ ACK Message (Robot → Operator: Command Received) ============
+
+message CommandAck {
+  // Header
+  uint32 command_id = 1;            // Which command this acknowledges
+  int64 received_timestamp_unix_ms = 2;  // When robot received it
+  string robot_id = 3;
+
+  // Status
+  bool accepted = 4;               // Did robot accept the command?
+  string reject_reason = 5;         // Why command was rejected (if applicable)
+
+  // Execution status
+  string execution_status = 6;      // "QUEUED", "EXECUTING", "COMPLETE", "FAILED"
+  int32 execution_progress_pct = 7; // 0-100 for long-running commands
+
+  // Integrity
+  uint32 crc32 = 8;
+}
+
+// ============ Event Notification (Robot → Operator: Critical Events) ============
+
+message EventNotification {
+  // Header
+  uint32 sequence_id = 1;           // Event sequence number
+  int64 timestamp_unix_ms = 2;      // When event occurred
+  string robot_id = 3;
+
+  // Event content
+  string event_type = 4;            // "STATE_CHANGE", "CRITICAL_ALERT", "TASK_COMPLETE"
+  string event_data = 5;            // JSON string (events can be complex)
+  int32 severity = 6;               // 1=critical, 2=warning, 3=info
+
+  // Context
+  string current_state = 7;         // Robot state at time of event
+  GpsCoordinates location = 8;
+  SensorData sensor_snapshot = 9;
+
+  // Integrity
+  uint32 crc32 = 10;
+}
+
+// ============ Homing Fallback Message (Robot → Operator: Autonomous Recovery) ============
+
+message HomingInitiated {
+  // Header
+  uint32 sequence_id = 1;
+  int64 timestamp_unix_ms = 2;
+  string robot_id = 3;
+
+  // Homing parameters
+  string reason = 4;               // "OPERATOR_TIMEOUT", "LOW_BATTERY", "LOSS_OF_SIGNAL", "ERROR_RECOVERY"
+  int32 estimated_return_time_sec = 5;  // ETA to surface
+  GpsCoordinates last_known_position = 6;
+  int32 battery_pct = 7;
+
+  // Homing strategy
+  string strategy = 8;              // "DIRECT_ASCENT", "SAFE_APPROACH", "EMERGENCY_BLOW"
+
+  // Integrity
+  uint32 crc32 = 9;
+}
+
+// ============ Wrapper Message (for Firebase/MQTT transport) ============
+
+message RobotMessage {
+  int64 created_at_unix_ms = 1;
+
+  oneof payload {
+    TelemetryMessage telemetry = 2;
+    CommandMessage command = 3;
+    CommandAck ack = 4;
+    EventNotification event = 5;
+    HomingInitiated homing = 6;
+  }
+}
+
+// ============ Batch Message (for efficient bulk transmission) ============
+
+message TelemetryBatch {
+  string robot_id = 1;
+  repeated TelemetryMessage messages = 2;
+  int64 batch_timestamp_unix_ms = 3;
+  uint32 batch_crc32 = 4;           // CRC32 of entire batch
+}

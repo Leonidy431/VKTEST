@@ -1,0 +1,198 @@
+version: '3.8'
+
+services:
+  # Main ROV autonomous agent (Raspberry Pi 3)
+  rov_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rov_agent
+    restart: unless-stopped
+    network_mode: host  # Direct access to GPIO, UART, network interfaces
+
+    environment:
+      - ROBOT_ID=rov-001
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_API_KEY=${FIREBASE_API_KEY}
+      - MQTT_BROKER_URL=${MQTT_BROKER_URL:-mqtt://localhost:1883}
+      - LOG_LEVEL=DEBUG
+      - WEBRTC_LISTEN_PORT=9000
+      - PYTHONUNBUFFERED=1
+
+    volumes:
+      # Sensor data (I2C, GPIO, UART)
+      - /dev:/dev:rw
+      - /sys:/sys:ro
+
+      # Persistent buffer storage
+      - /var/lib/rov/buffer:/tmp/rov_buffer
+      - /var/lib/rov/logs:/var/log/rov
+
+      # Firebase credentials
+      - ${HOME}/.firebase:/root/.firebase:ro
+
+    # Shared memory for real-time sonar data (no filesystem latency)
+    tmpfs:
+      - /dev/shm:size=512M
+
+    ipc: host  # Required for multiprocessing shared memory
+    pid: host  # Access system processes
+
+    # Resource limits (Pi 3 has 1GB RAM total)
+    mem_limit: 768m
+    cpus: '3'  # Use 3 cores (4 available - 1 for OS)
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        labels: "service=rov_agent"
+
+    # Capabilities needed for GPIO/PWM/UART
+    cap_add:
+      - SYS_RAWIO
+      - NET_ADMIN
+      - SYS_ADMIN
+
+    # Privileged mode allows access to hardware devices
+    privileged: true
+
+    ports:
+      # WebRTC UDP (sonar streaming)
+      - "9000:9000/udp"
+
+      # REST API for monitoring
+      - "8080:8080/tcp"
+
+    depends_on:
+      - mqtt_broker
+      - firebase_emulator
+
+  # MQTT broker for resilient telemetry (Mosquitto)
+  mqtt_broker:
+    image: eclipse-mosquitto:2.0
+    container_name: mqtt_broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883"    # MQTT
+      - "8883:8883"    # MQTT over TLS
+
+    volumes:
+      - /var/lib/rov/mosquitto/config:/mosquitto/config
+      - /var/lib/rov/mosquitto/data:/mosquitto/data
+      - /var/lib/rov/mosquitto/logs:/mosquitto/log
+
+    environment:
+      - TZ=UTC
+
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "test", "-C", "1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # Firebase Emulator (for testing, remove in production)
+  firebase_emulator:
+    image: google/firebase-emulators:latest
+    container_name: firebase_emulator
+    restart: unless-stopped
+    ports:
+      - "9099:9099"   # Firebase Auth
+      - "5000:5000"   # Firestore
+      - "8085:8085"   # Realtime Database
+      - "5001:5001"   # Cloud Functions
+
+    environment:
+      - FIREBASE_DATABASE_EMULATOR_HOST=localhost:8085
+
+    volumes:
+      - /var/lib/rov/firebase:/opt/data
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+    # Comment out for production Firebase
+    # Remove entire service section when switching to real Firebase
+
+  # Monitoring stack (Prometheus + Grafana) - Optional
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /var/lib/rov/prometheus:/prometheus
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+
+    environment:
+      - TZ=UTC
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - /var/lib/rov/grafana:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - TZ=UTC
+
+    depends_on:
+      - prometheus
+
+# Network configuration
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+# Named volumes for persistence
+volumes:
+  rov_buffer:
+    driver: local
+  rov_logs:
+    driver: local
+  firebase_data:
+    driver: local
+  mosquitto_config:
+    driver: local
+  mosquitto_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

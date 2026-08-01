@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ti_mmwave_robotics</name>
+  <version>1.0.0</version>
+  <description>TI IWR6843 mmWave Radar Integration for ROS2 Robotics</description>
+
+  <maintainer email="robotics@example.com">Phased Array Robotics</maintainer>
+  <license>Apache-2.0</license>
+
+  <url type="website">https://github.com/leonidy431/vktest/tree/main/robotics</url>
+  <url type="repository">https://github.com/leonidy431/vktest.git</url>
+  <url type="bugtracker">https://github.com/leonidy431/vktest/issues</url>
+
+  <author email="dev@example.com">Robotics Development Team</author>
+
+  <!-- ROS2 Build System -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- ROS2 Core Dependencies -->
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+
+  <!-- Point Cloud Processing -->
+  <depend>pcl</depend>
+  <depend>pcl_ros</depend>
+  <depend>pcl_conversions</depend>
+  <depend>pcl_msgs</depend>
+
+  <!-- Vision -->
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>opencv</depend>
+
+  <!-- Utilities -->
+  <depend>eigen</depend>
+  <depend>yaml_cpp_vendor</depend>
+
+  <!-- Navigation Stack -->
+  <depend>nav2_bringup</depend>
+  <depend>nav2_common</depend>
+  <depend>nav2_core</depend>
+  <depend>nav2_costmap_2d</depend>
+  <depend>nav2_navfn_planner</depend>
+  <depend>nav2_regulated_pure_pursuit_controller</depend>
+  <depend>nav2_behaviors</depend>
+  <depend>nav2_controller</depend>
+  <depend>nav2_planner</depend>
+  <depend>nav2_smoother</depend>
+  <depend>nav2_bt_navigator</depend>
+  <depend>nav2_util</depend>
+  <depend>behaviortree_cpp</depend>
+
+  <!-- SLAM -->
+  <depend>octomap</depend>
+  <depend>octomap_msgs</depend>
+  <depend>octomap_ros</depend>
+
+  <!-- Legacy SLAM for Comparison -->
+  <depend>cartographer</depend>
+  <depend>cartographer_ros</depend>
+
+  <!-- Laser Scan Processing -->
+  <depend>pointcloud_to_laserscan</depend>
+  <depend>laser_assembler</depend>
+  <depend>laser_geometry</depend>
+
+  <!-- Development & Testing -->
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <!-- Export build and runtime info -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>

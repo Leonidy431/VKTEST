@@ -1,0 +1,33 @@
+# Point Cloud to Laser Scan Converter
+# Converts 3D mmWave point cloud to 2D laser scan for SLAM/Navigation
+
+pointcloud_to_laserscan:
+  ros__parameters:
+    # Input/Output
+    cloud_topic: "/radar/pointcloud"
+    scan_topic: "/radar/scan_2d"
+
+    # Frame ID
+    target_frame: "radar"
+
+    # Height range for projection
+    min_height: -0.2  # Below robot base (m)
+    max_height: 1.0   # Above robot base (m)
+
+    # Angle parameters
+    angle_min: -1.5707963  # -90 degrees (rad)
+    angle_max: 1.5707963   # +90 degrees (rad)
+    angle_increment: 0.0087  # ~0.5 degree resolution
+
+    # Range parameters
+    range_min: 0.5    # Minimum range (m)
+    range_max: 50.0   # Maximum range (m)
+
+    # Scan time parameter (important for velocity estimation)
+    scan_time: 0.1    # 100ms = 10 Hz
+
+    # Intensity handling
+    use_intensity: false  # Don't use intensity values
+
+    # Concurrency and threading
+    use_sim_time: false
